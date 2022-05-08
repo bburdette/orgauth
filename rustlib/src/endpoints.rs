@@ -1,5 +1,7 @@
 use crate::data::Config;
-use crate::data::{Login, RegistrationData, ResetPassword, SetPassword, WhatMessage};
+use crate::data::{
+  ChangeEmail, ChangePassword, Login, RegistrationData, ResetPassword, SetPassword, WhatMessage,
+};
 use crate::dbfun;
 use crate::email;
 use crate::util;
@@ -203,6 +205,72 @@ pub fn user_interface(
         }
       }
     }
+  } else if msg.what == "ChangePassword" || msg.what == "ChangeEmail" {
+    // are we logged in?
+    match session.get::<Uuid>("token")? {
+      None => Ok(WhatMessage {
+        what: "not logged in".to_string(),
+        data: Option::None,
+      }),
+      Some(token) => {
+        let conn = dbfun::connection_open(config.db.as_path())?;
+        match dbfun::read_user_by_token(&conn, token, Some(config.login_token_expiration_ms)) {
+          Err(e) => {
+            info!("read_user_by_token error: {:?}", e);
+
+            Ok(WhatMessage {
+              what: "invalid user or pwd".to_string(),
+              data: Option::None,
+            })
+          }
+          Ok(userdata) => {
+            // finally!  processing messages as logged in user.
+            user_interface_loggedin(&config, userdata.id, &msg)
+          }
+        }
+      }
+    }
+  } else {
+    Err(Box::new(simple_error::SimpleError::new(format!(
+      "invalid 'what' code:'{}'",
+      msg.what
+    ))))
+  }
+}
+
+pub fn user_interface_loggedin(
+  config: &Config,
+  uid: i64,
+  msg: &WhatMessage,
+) -> Result<WhatMessage, Box<dyn Error>> {
+  if msg.what == "ChangePassword" {
+    let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
+    let cp: ChangePassword = serde_json::from_value(msgdata.clone())?;
+    let conn = dbfun::connection_open(config.db.as_path())?;
+    dbfun::change_password(&conn, uid, cp)?;
+    Ok(WhatMessage {
+      what: "changed password".to_string(),
+      data: None,
+    })
+  } else if msg.what == "ChangeEmail" {
+    let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
+    let cp: ChangeEmail = serde_json::from_value(msgdata.clone())?;
+    let conn = dbfun::connection_open(config.db.as_path())?;
+    let (name, token) = dbfun::change_email(&conn, uid, cp.clone())?;
+    // send a confirmation email.
+    email::send_newemail_confirmation(
+      config.appname.as_str(),
+      config.domain.as_str(),
+      config.mainsite.as_str(),
+      cp.email.as_str(),
+      name.as_str(),
+      token.to_string().as_str(),
+    )?;
+
+    Ok(WhatMessage {
+      what: "changed email".to_string(),
+      data: None,
+    })
   } else {
     Err(Box::new(simple_error::SimpleError::new(format!(
       "invalid 'what' code:'{}'",
