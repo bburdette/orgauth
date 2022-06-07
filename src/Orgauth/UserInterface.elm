@@ -13,6 +13,7 @@ type SendMsg
     | Logout
     | ChangePassword Data.ChangePassword
     | ChangeEmail Data.ChangeEmail
+    | GetUsers
 
 
 type ServerResponse
@@ -28,6 +29,7 @@ type ServerResponse
     | ResetPasswordAck
     | SetPasswordAck
     | ServerError String
+    | Users (List Data.LoginData)
 
 
 showServerResponse : ServerResponse -> String
@@ -68,6 +70,9 @@ showServerResponse sr =
 
         ServerError _ ->
             "ServerError"
+
+        Users _ ->
+            "Users"
 
 
 encodeSendMsg : SendMsg -> JE.Value
@@ -112,6 +117,11 @@ encodeSendMsg sm =
             JE.object
                 [ ( "what", JE.string "ChangeEmail" )
                 , ( "data", Data.encodeChangeEmail chpwd )
+                ]
+
+        GetUsers ->
+            JE.object
+                [ ( "what", JE.string "getusers" )
                 ]
 
 

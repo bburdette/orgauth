@@ -70,7 +70,7 @@ pub fn login_data(conn: &Connection, uid: i64) -> Result<LoginData, Box<dyn Erro
 pub fn login_data_cb(
   conn: &Connection,
   uid: i64,
-  mut extra_login_data: Box<
+  extra_login_data: &mut Box<
     dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, Box<dyn Error>>,
   >,
 ) -> Result<LoginData, Box<dyn Error>> {
@@ -80,6 +80,32 @@ pub fn login_data_cb(
     name: user.name,
     data: extra_login_data(&conn, uid)?,
   })
+}
+
+pub fn read_users(
+  conn: &Connection,
+  extra_login_data: &mut Box<
+    dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, Box<dyn Error>>,
+  >,
+) -> Result<Vec<LoginData>, Box<dyn Error>> {
+  let mut pstmt = conn.prepare(
+    // return zklinks that link to or from notes that link to 'public'.
+    "select id from user",
+  )?;
+
+  let r = Ok(
+    pstmt
+      .query_map(params![], |row| {
+        let id = row.get(0)?;
+        Ok(id)
+      })?
+      .filter_map(|rid| match rid {
+        Ok(id) => login_data_cb(&conn, id, extra_login_data).ok(),
+        Err(_) => None,
+      })
+      .collect(),
+  );
+  r
 }
 
 pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, Box<dyn Error>> {
