@@ -52,6 +52,7 @@ type alias ChangeEmail =
 type alias LoginData =
     { userid : Int
     , name : String
+    , admin : Bool
     , data : JD.Value
     }
 
@@ -116,6 +117,7 @@ decodeLoginData =
     JD.succeed LoginData
         |> andMap (JD.field "userid" JD.int)
         |> andMap (JD.field "name" JD.string)
+        |> andMap (JD.field "admin" JD.bool)
         |> andMap (JD.field "data" JD.value)
 
 
@@ -125,9 +127,10 @@ decodeLoginData =
 ------------------------------------------------
 
 
-toLd : { a | userid : Int, name : String } -> LoginData
+toLd : { a | userid : Int, name : String, admin : Bool } -> LoginData
 toLd ld =
     { userid = ld.userid
     , name = ld.name
+    , admin = ld.admin
     , data = JE.null
     }

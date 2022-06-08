@@ -63,6 +63,7 @@ pub fn login_data(conn: &Connection, uid: i64) -> Result<LoginData, Box<dyn Erro
   Ok(LoginData {
     userid: uid,
     name: user.name,
+    admin: user.admin,
     data: None,
   })
 }
@@ -78,6 +79,7 @@ pub fn login_data_cb(
   Ok(LoginData {
     userid: uid,
     name: user.name,
+    admin: user.admin,
     data: extra_login_data(&conn, uid)?,
   })
 }
@@ -110,7 +112,7 @@ pub fn read_users(
 
 pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, Box<dyn Error>> {
   let user = conn.query_row(
-    "select id, hashwd, salt, email, registration_key
+    "select id, hashwd, salt, email, registration_key, admin
       from orgauth_user where name = ?1",
     params![name],
     |row| {
@@ -121,6 +123,7 @@ pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, Box<dyn 
         salt: row.get(2)?,
         email: row.get(3)?,
         registration_key: row.get(4)?,
+        admin: row.get(5)?,
       })
     },
   )?;
@@ -130,7 +133,7 @@ pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, Box<dyn 
 
 pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, Box<dyn Error>> {
   let user = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key
+    "select id, name, hashwd, salt, email, registration_key, admin
       from orgauth_user where id = ?1",
     params![id],
     |row| {
@@ -141,6 +144,7 @@ pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, Box<dyn Error
         salt: row.get(3)?,
         email: row.get(4)?,
         registration_key: row.get(5)?,
+        admin: row.get(6)?,
       })
     },
   )?;
@@ -154,7 +158,7 @@ pub fn read_user_by_token(
   token_expiration_ms: Option<i64>,
 ) -> Result<User, Box<dyn Error>> {
   let (user, tokendate) = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key, orgauth_token.tokendate
+    "select id, name, hashwd, salt, email, registration_key, admin, orgauth_token.tokendate
       from orgauth_user, orgauth_token where orgauth_user.id = orgauth_token.user and orgauth_token.token = ?1",
     params![token.to_string()],
     |row| {
@@ -166,8 +170,9 @@ pub fn read_user_by_token(
           salt: row.get(3)?,
           email: row.get(4)?,
           registration_key: row.get(5)?,
+          admin: row.get(6)?,
         },
-        row.get(6)?,
+        row.get(7)?,
       ))
     },
   )?;
