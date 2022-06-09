@@ -1,4 +1,5 @@
 .direnv
+elm-stuff
 elm/node_modules/
 elm/dist/
 elm/.cache/
