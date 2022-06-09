@@ -19,13 +19,17 @@ type alias Model =
 
 
 type Msg
-    = OkClick
-    | CancelClick
+    = DoneClick
+    | NewClick
+    | EditPress Data.LoginData
     | Noop
 
 
 type Command
-    = None
+    = Done
+    | NewUser
+    | EditUser Data.LoginData
+    | None
 
 
 init : List Data.LoginData -> Model
@@ -40,36 +44,43 @@ view buttonStyle model =
         [ E.width (E.px 500)
         , E.height E.shrink
         , E.spacing 10
+        , E.centerX
         ]
         [ E.table []
             { data = model.users
             , columns =
-                [ { header = E.text "name"
+                [ { header = E.text "user"
                   , width =
                         E.fill
                   , view =
-                        \n -> E.text n.name
+                        \n ->
+                            E.row
+                                [ E.mouseDown [ EBk.color TC.blue ]
+                                , E.mouseOver [ EBk.color TC.green ]
+                                , EE.onClick (EditPress n)
+                                ]
+                                [ E.text n.name ]
                   }
                 ]
             }
         , E.row [ E.width E.fill, E.spacing 10 ]
-            [ EI.button buttonStyle
-                { onPress = Just OkClick, label = E.text "Ok" }
-            , EI.button
-                buttonStyle
-                { onPress = Just CancelClick, label = E.text "Cancel" }
+            [ EI.button (E.centerX :: buttonStyle)
+                { onPress = Just DoneClick, label = E.text "done" }
             ]
         ]
 
 
 update : Msg -> Model -> ( Model, Command )
 update msg model =
-    case msg of
-        CancelClick ->
-            ( model, None )
+    case Debug.log "msg" msg of
+        DoneClick ->
+            ( model, Done )
 
-        OkClick ->
-            ( model, None )
+        EditPress ld ->
+            ( model, EditUser ld )
+
+        NewClick ->
+            ( model, NewUser )
 
         Noop ->
             ( model, None )
