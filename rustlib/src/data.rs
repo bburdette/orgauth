@@ -12,6 +12,7 @@ pub struct Config {
   pub login_token_expiration_ms: i64,
   pub email_token_expiration_ms: i64,
   pub reset_token_expiration_ms: i64,
+  pub open_registration: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -20,6 +21,17 @@ pub struct LoginData {
   pub name: String,
   pub admin: bool,
   pub data: Option<serde_json::Value>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AdminSettings {
+  pub open_registration: bool,
+}
+
+pub fn admin_settings(config: &Config) -> AdminSettings {
+  AdminSettings {
+    open_registration: config.open_registration,
+  }
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]

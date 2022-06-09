@@ -57,6 +57,11 @@ type alias LoginData =
     }
 
 
+type alias AdminSettings =
+    { openRegistration : Bool
+    }
+
+
 
 ----------------------------------------
 -- Json encoders/decoders
@@ -119,6 +124,12 @@ decodeLoginData =
         |> andMap (JD.field "name" JD.string)
         |> andMap (JD.field "admin" JD.bool)
         |> andMap (JD.field "data" JD.value)
+
+
+decodeAdminSettings : JD.Decoder AdminSettings
+decodeAdminSettings =
+    JD.succeed AdminSettings
+        |> andMap (JD.field "open_registration" JD.bool)
 
 
 
