@@ -65,6 +65,8 @@ view buttonStyle model =
             }
         , E.row [ E.width E.fill, E.spacing 10 ]
             [ EI.button (E.centerX :: buttonStyle)
+                { onPress = Just NewClick, label = E.text "new" }
+            , EI.button (E.centerX :: buttonStyle)
                 { onPress = Just DoneClick, label = E.text "done" }
             ]
         ]
