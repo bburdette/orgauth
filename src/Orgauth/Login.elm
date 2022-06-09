@@ -1,5 +1,7 @@
 module Orgauth.Login exposing (Cmd(..), Mode(..), Model, Msg(..), initialModel, invalidUserOrPwd, loginView, makeUrlP, onWkKeyPress, registrationSent, registrationView, sentView, unregisteredUser, update, urlToState, userExists, view)
 
+-- import TcCommon as TC
+
 import Common exposing (buttonStyle)
 import Dict exposing (Dict)
 import Element exposing (..)
@@ -9,9 +11,9 @@ import Element.Events exposing (onClick)
 import Element.Font as Font
 import Element.Input as Input
 import Html exposing (Html)
+import Orgauth.Data as Data
 import Random exposing (Seed)
 import TangoColors as Color
-import TcCommon as TC
 import Toop
 import Util exposing (httpErrorString)
 import WindowKeys as WK
@@ -21,6 +23,12 @@ type Mode
     = RegistrationMode
     | LoginMode
     | ResetMode
+
+
+type alias StylePalette a =
+    { a
+        | defaultSpacing : Int
+    }
 
 
 type alias Model =
@@ -35,6 +43,7 @@ type alias Model =
     , responseMessage : String
     , postLoginUrl : Maybe ( List String, Dict String String )
     , appname : String
+    , adminSettings : Data.AdminSettings
     }
 
 
@@ -57,8 +66,8 @@ type Cmd
     | None
 
 
-initialModel : Maybe { uid : String, pwd : String } -> String -> Seed -> Model
-initialModel mblogin appname seed =
+initialModel : Maybe { uid : String, pwd : String } -> Data.AdminSettings -> String -> Seed -> Model
+initialModel mblogin adminSettings appname seed =
     let
         ( newseed, cq, cans ) =
             Util.captchaQ seed
@@ -82,6 +91,7 @@ initialModel mblogin appname seed =
     , responseMessage = ""
     , postLoginUrl = Nothing
     , appname = appname
+    , adminSettings = adminSettings
     }
 
 
@@ -149,8 +159,8 @@ invalidUserOrPwd model =
     }
 
 
-view : Util.Size -> Model -> Element Msg
-view size model =
+view : StylePalette a -> Util.Size -> Model -> Element Msg
+view style size model =
     column [ width fill, height (px size.height) ]
         [ column
             [ centerX
@@ -165,10 +175,16 @@ view size model =
                 [ Common.navbar 0
                     model.mode
                     SetMode
-                    [ ( LoginMode, "log in" )
-                    , ( RegistrationMode, "register" )
-                    , ( ResetMode, "reset" )
-                    ]
+                    (List.filterMap identity
+                        [ Just ( LoginMode, "log in" )
+                        , if model.adminSettings.openRegistration then
+                            Just ( RegistrationMode, "register" )
+
+                          else
+                            Nothing
+                        , Just ( ResetMode, "reset" )
+                        ]
+                    )
                 ]
             , if model.sent then
                 sentView model
@@ -176,21 +192,21 @@ view size model =
               else
                 case model.mode of
                     LoginMode ->
-                        loginView model
+                        loginView style model
 
                     ResetMode ->
-                        resetView model
+                        resetView style model
 
                     RegistrationMode ->
-                        registrationView model
+                        registrationView style model
             ]
         ]
 
 
-loginView : Model -> Element Msg
-loginView model =
+loginView : StylePalette a -> Model -> Element Msg
+loginView style model =
     column
-        [ spacing TC.defaultSpacing
+        [ spacing style.defaultSpacing
         , width fill
         , height fill
         , padding 10
@@ -219,10 +235,10 @@ loginView model =
         ]
 
 
-resetView : Model -> Element Msg
-resetView model =
+resetView : StylePalette a -> Model -> Element Msg
+resetView style model =
     column
-        [ spacing TC.defaultSpacing
+        [ spacing style.defaultSpacing
         , width fill
         , height fill
         , padding 10
@@ -243,9 +259,9 @@ resetView model =
         ]
 
 
-registrationView : Model -> Element Msg
-registrationView model =
-    column [ Background.color (Common.navbarColor 1), width fill, height fill, spacing TC.defaultSpacing, padding 8 ]
+registrationView : StylePalette a -> Model -> Element Msg
+registrationView style model =
+    column [ Background.color (Common.navbarColor 1), width fill, height fill, spacing style.defaultSpacing, padding 8 ]
         [ text <| "welcome to " ++ model.appname ++ "!"
         , text <| "register your new account below:"
         , Input.text []

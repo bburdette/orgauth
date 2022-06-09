@@ -1,4 +1,7 @@
-use crate::data::{Config, Login, RegistrationData, ResetPassword, SetPassword, User, WhatMessage};
+use crate::data::{
+  ChangeEmail, ChangePassword, Config, Login, RegistrationData, ResetPassword, SetPassword, User,
+  WhatMessage,
+};
 use crate::dbfun;
 use crate::email;
 use crate::util;
