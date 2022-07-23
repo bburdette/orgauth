@@ -23,11 +23,13 @@ type alias Model =
 type Msg
     = DoneClick
     | NameEdit String
+    | DeleteClick Int
     | Noop
 
 
 type Command
     = Done
+    | Delete Int
     | None
 
 
@@ -77,7 +79,14 @@ view buttonStyle model =
             , label = EI.labelLeft [] (E.text "name")
             }
         , E.row [ E.width E.fill, E.spacing 10 ]
-            [ EI.button (E.centerX :: buttonStyle)
+            [ model.initialUser
+                |> Maybe.map
+                    (\u ->
+                        EI.button (E.centerX :: buttonStyle)
+                            { onPress = Just <| DeleteClick u.userid, label = E.text "delete" }
+                    )
+                |> Maybe.withDefault E.none
+            , EI.button (E.centerX :: buttonStyle)
                 { onPress = Just DoneClick, label = E.text "done" }
             ]
         ]
@@ -88,6 +97,9 @@ update msg model =
     case msg of
         DoneClick ->
             ( model, Done )
+
+        DeleteClick id ->
+            ( model, Delete id )
 
         NameEdit n ->
             ( { model | name = n }, None )

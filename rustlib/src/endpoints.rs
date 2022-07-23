@@ -359,6 +359,20 @@ pub fn admin_interface(
     //     }
     //   }
     // }
+  } else if msg.what == "deleteuser" {
+    match &msg.data {
+      Some(v) => {
+        let uid: i64 = serde_json::from_value(v.clone())?;
+        Ok(WhatMessage {
+          what: "user deleted".to_string(),
+          data: Some(serde_json::to_value(uid)?),
+        })
+      }
+      None => Ok(WhatMessage {
+        what: "no user id".to_string(),
+        data: None,
+      }),
+    }
   } else {
     Err(Box::new(simple_error::SimpleError::new(format!(
       "invalid 'what' code:'{}'",
