@@ -10,7 +10,7 @@ use actix_session::Session;
 use actix_web::{HttpRequest, HttpResponse};
 use crypto_hash::{hex_digest, Algorithm};
 use log::{error, info};
-use rusqlite::Connection;
+use rusqlite::{params, Connection};
 use std::error::Error;
 use std::str::FromStr;
 use util::now;
@@ -21,6 +21,7 @@ pub struct Callbacks {
     Box<dyn FnMut(&Connection, &RegistrationData, i64) -> Result<(), Box<dyn Error>>>,
   pub extra_login_data:
     Box<dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, Box<dyn Error>>>,
+  pub on_delete_user: Box<dyn FnMut(&Connection, i64) -> Result<bool, Box<dyn Error>>>,
 }
 
 pub fn user_interface(
@@ -363,10 +364,21 @@ pub fn admin_interface(
     match &msg.data {
       Some(v) => {
         let uid: i64 = serde_json::from_value(v.clone())?;
-        Ok(WhatMessage {
-          what: "user deleted".to_string(),
-          data: Some(serde_json::to_value(uid)?),
-        })
+        conn.execute("begin transaction", params!())?;
+        if (callbacks.on_delete_user)(&conn, uid)? {
+          dbfun::delete_user(&conn, uid)?;
+          conn.execute("commit", params!())?;
+          Ok(WhatMessage {
+            what: "user deleted".to_string(),
+            data: Some(serde_json::to_value(uid)?),
+          })
+        } else {
+          conn.execute("rollback", params!())?;
+          Ok(WhatMessage {
+            what: "user NOT deleted".to_string(),
+            data: Some(serde_json::to_value(uid)?),
+          })
+        }
       }
       None => Ok(WhatMessage {
         what: "no user id".to_string(),

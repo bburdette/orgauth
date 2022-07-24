@@ -452,3 +452,14 @@ pub fn change_email(
   }
 }
 
+pub fn delete_user(conn: &Connection, uid: i64) -> Result<(), Box<dyn Error>> {
+  conn.execute("delete from orgauth_token where user = ?1", params!(uid))?;
+  conn.execute("delete from orgauth_newemail where user = ?1", params!(uid))?;
+  conn.execute(
+    "delete from orgauth_newpassword where user = ?1",
+    params!(uid),
+  )?;
+  conn.execute("delete from orgauth_user where id = ?1", params!(uid))?;
+
+  Ok(())
+}

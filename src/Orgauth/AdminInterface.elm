@@ -43,7 +43,7 @@ encodeSendMsg sm =
 
         DeleteUser id ->
             JE.object
-                [ ( "what", JE.string "getusers" )
+                [ ( "what", JE.string "deleteuser" )
                 , ( "data", JE.int id )
                 ]
 
