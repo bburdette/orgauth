@@ -103,32 +103,39 @@ pub fn user_interface(
         data: Option::None,
       }),
       None => {
-        if hex_digest(
-          Algorithm::SHA256,
-          (login.pwd.clone() + userdata.salt.as_str())
-            .into_bytes()
-            .as_slice(),
-        ) != userdata.hashwd
-        {
-          // don't distinguish between bad user id and bad pwd!
-          Ok(WhatMessage {
-            what: "invalid user or pwd".to_string(),
-            data: Option::None,
-          })
-        } else {
-          let mut ld = dbfun::login_data(&conn, userdata.id)?;
-          let data = (callbacks.extra_login_data)(&conn, ld.userid)?;
-          ld.data = data;
-          // new token here, and token date.
-          let token = Uuid::new_v4();
-          dbfun::add_token(&conn, userdata.id, token)?;
-          session.set("token", token)?;
-          dbfun::update_user(&conn, &userdata)?;
-          info!("logged in, user: {:?}", userdata.name);
+        if userdata.active {
+          if hex_digest(
+            Algorithm::SHA256,
+            (login.pwd.clone() + userdata.salt.as_str())
+              .into_bytes()
+              .as_slice(),
+          ) != userdata.hashwd
+          {
+            // don't distinguish between bad user id and bad pwd!
+            Ok(WhatMessage {
+              what: "invalid user or pwd".to_string(),
+              data: Option::None,
+            })
+          } else {
+            let mut ld = dbfun::login_data(&conn, userdata.id)?;
+            let data = (callbacks.extra_login_data)(&conn, ld.userid)?;
+            ld.data = data;
+            // new token here, and token date.
+            let token = Uuid::new_v4();
+            dbfun::add_token(&conn, userdata.id, token)?;
+            session.set("token", token)?;
+            dbfun::update_user(&conn, &userdata)?;
+            info!("logged in, user: {:?}", userdata.name);
 
+            Ok(WhatMessage {
+              what: "logged in".to_string(),
+              data: Option::Some(serde_json::to_value(ld)?),
+            })
+          }
+        } else {
           Ok(WhatMessage {
-            what: "logged in".to_string(),
-            data: Option::Some(serde_json::to_value(ld)?),
+            what: "account inactive".to_string(),
+            data: None,
           })
         }
       }
