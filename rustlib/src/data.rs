@@ -20,6 +20,7 @@ pub struct LoginData {
   pub userid: i64,
   pub name: String,
   pub admin: bool,
+  pub active: bool,
   pub data: Option<serde_json::Value>,
 }
 
@@ -43,6 +44,7 @@ pub struct User {
   pub email: String,
   pub registration_key: Option<String>,
   pub admin: bool,
+  pub active: bool,
 }
 
 #[derive(Deserialize, Debug)]

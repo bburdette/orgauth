@@ -64,6 +64,7 @@ pub fn login_data(conn: &Connection, uid: i64) -> Result<LoginData, Box<dyn Erro
     userid: uid,
     name: user.name,
     admin: user.admin,
+    active: user.active,
     data: None,
   })
 }
@@ -80,6 +81,7 @@ pub fn login_data_cb(
     userid: uid,
     name: user.name,
     admin: user.admin,
+    active: user.active,
     data: extra_login_data(&conn, uid)?,
   })
 }
@@ -112,7 +114,7 @@ pub fn read_users(
 
 pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, Box<dyn Error>> {
   let user = conn.query_row(
-    "select id, hashwd, salt, email, registration_key, admin
+    "select id, hashwd, salt, email, registration_key, admin, active
       from orgauth_user where name = ?1",
     params![name],
     |row| {
@@ -124,6 +126,7 @@ pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, Box<dyn 
         email: row.get(3)?,
         registration_key: row.get(4)?,
         admin: row.get(5)?,
+        active: row.get(6)?,
       })
     },
   )?;
@@ -133,7 +136,7 @@ pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, Box<dyn 
 
 pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, Box<dyn Error>> {
   let user = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key, admin
+    "select id, name, hashwd, salt, email, registration_key, admin, active
       from orgauth_user where id = ?1",
     params![id],
     |row| {
@@ -145,6 +148,7 @@ pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, Box<dyn Error
         email: row.get(4)?,
         registration_key: row.get(5)?,
         admin: row.get(6)?,
+        active: row.get(7)?,
       })
     },
   )?;
@@ -158,7 +162,7 @@ pub fn read_user_by_token(
   token_expiration_ms: Option<i64>,
 ) -> Result<User, Box<dyn Error>> {
   let (user, tokendate) = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key, admin, orgauth_token.tokendate
+    "select id, name, hashwd, salt, email, registration_key, admin, active, orgauth_token.tokendate
       from orgauth_user, orgauth_token where orgauth_user.id = orgauth_token.user and orgauth_token.token = ?1",
     params![token.to_string()],
     |row| {
@@ -171,21 +175,26 @@ pub fn read_user_by_token(
           email: row.get(4)?,
           registration_key: row.get(5)?,
           admin: row.get(6)?,
+          active: row.get(7)?,
         },
-        row.get(7)?,
+        row.get(8)?,
       ))
     },
   )?;
 
-  match token_expiration_ms {
-    Some(texp) => {
-      if is_token_expired(texp, tokendate) {
-        bail!("login expired")
-      } else {
-        Ok(user)
+  if !user.active {
+    bail!("account is inactive")
+  } else {
+    match token_expiration_ms {
+      Some(texp) => {
+        if is_token_expired(texp, tokendate) {
+          bail!("login expired")
+        } else {
+          Ok(user)
+        }
       }
+      None => Ok(user),
     }
-    None => Ok(user),
   }
 }
 

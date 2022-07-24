@@ -16,6 +16,7 @@ import Util
 type alias Model =
     { name : String
     , admin : Bool
+    , active : Bool
     , initialUser : Maybe Data.LoginData
     }
 
@@ -24,6 +25,7 @@ type Msg
     = DoneClick
     | NameEdit String
     | DeleteClick Int
+    | ActiveChecked Bool
     | Noop
 
 
@@ -37,6 +39,7 @@ init : Data.LoginData -> Model
 init ld =
     { name = ld.name
     , admin = ld.admin
+    , active = ld.active
     , initialUser = Just ld
     }
 
@@ -45,6 +48,7 @@ initNew : Model
 initNew =
     { name = ""
     , admin = False
+    , active = False
     , initialUser = Nothing
     }
 
@@ -59,6 +63,8 @@ isDirty model =
                         == initialUser.name
                         && model.admin
                         == initialUser.admin
+                        && model.active
+                        == initialUser.active
                     )
             )
         |> Maybe.withDefault True
@@ -79,7 +85,13 @@ view buttonStyle model =
             , label = EI.labelLeft [] (E.text "name")
             }
         , E.row [ E.width E.fill, E.spacing 10 ]
-            [ model.initialUser
+            [ EI.checkbox []
+                { onChange = ActiveChecked
+                , icon = EI.defaultCheckbox
+                , checked = model.active
+                , label = EI.labelLeft [] (E.text "active")
+                }
+            , model.initialUser
                 |> Maybe.map
                     (\u ->
                         EI.button (E.centerX :: buttonStyle)
@@ -100,6 +112,9 @@ update msg model =
 
         DeleteClick id ->
             ( model, Delete id )
+
+        ActiveChecked active ->
+            ( { model | active = active }, None )
 
         NameEdit n ->
             ( { model | name = n }, None )

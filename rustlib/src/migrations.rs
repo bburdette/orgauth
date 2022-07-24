@@ -113,14 +113,15 @@ pub fn udpate2(dbfile: &Path) -> Result<(), Box<dyn Error>> {
     t.add_column("email", types::text().nullable(false));
     t.add_column("registration_key", types::text().nullable(true));
     t.add_column("admin", types::boolean().nullable(false));
+    t.add_column("active", types::boolean().nullable(false));
     t.add_column("createdate", types::integer().nullable(false));
   });
 
   conn.execute_batch(m2.make::<Sqlite>().as_str())?;
 
   conn.execute(
-    "insert into orgauth_user (id, name, hashwd, salt, email, registration_key, admin, createdate)
-        select id, name, hashwd, salt, email, registration_key, 0, createdate from orgauth_user_temp",
+    "insert into orgauth_user (id, name, hashwd, salt, email, registration_key, admin, active, createdate)
+        select id, name, hashwd, salt, email, registration_key, 0, 1, createdate from orgauth_user_temp",
     params![],
   )?;
 
