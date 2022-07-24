@@ -1,4 +1,4 @@
-module Orgauth.UserEdit exposing (Command(..), Model, Msg(..), init, initNew, isDirty, update, view)
+module Orgauth.UserEdit exposing (Command(..), Model, Msg(..), init, initNew, isDirty, onUserUpdated, update, view)
 
 import Element as E exposing (Element)
 import Element.Background as EBk
@@ -26,12 +26,14 @@ type Msg
     | NameEdit String
     | DeleteClick Int
     | ActiveChecked Bool
+    | SaveClick
     | Noop
 
 
 type Command
     = Done
     | Delete Int
+    | Save Data.LoginData
     | None
 
 
@@ -53,6 +55,11 @@ initNew =
     }
 
 
+onUserUpdated : Model -> Data.LoginData -> Model
+onUserUpdated _ ld =
+    init ld
+
+
 isDirty : Model -> Bool
 isDirty model =
     model.initialUser
@@ -72,6 +79,10 @@ isDirty model =
 
 view : List (E.Attribute Msg) -> Model -> Element Msg
 view buttonStyle model =
+    let
+        dirty =
+            isDirty model
+    in
     E.column
         [ E.width (E.px 500)
         , E.height E.shrink
@@ -98,6 +109,12 @@ view buttonStyle model =
                             { onPress = Just <| DeleteClick u.userid, label = E.text "delete" }
                     )
                 |> Maybe.withDefault E.none
+            , if dirty then
+                EI.button (E.centerX :: buttonStyle ++ [ EBk.color TC.orange ])
+                    { onPress = Just SaveClick, label = E.text "save" }
+
+              else
+                E.none
             , EI.button (E.centerX :: buttonStyle)
                 { onPress = Just DoneClick, label = E.text "done" }
             ]
@@ -112,6 +129,22 @@ update msg model =
 
         DeleteClick id ->
             ( model, Delete id )
+
+        SaveClick ->
+            model.initialUser
+                |> Maybe.map
+                    (\ld ->
+                        ( model
+                        , Save
+                            { userid = ld.userid
+                            , name = model.name
+                            , admin = model.admin
+                            , active = model.active
+                            , data = ld.data
+                            }
+                        )
+                    )
+                |> Maybe.withDefault ( model, None )
 
         ActiveChecked active ->
             ( { model | active = active }, None )

@@ -128,6 +128,17 @@ decodeLoginData =
         |> andMap (JD.field "data" JD.value)
 
 
+encodeLoginData : LoginData -> JE.Value
+encodeLoginData ld =
+    JE.object
+        [ ( "userid", JE.int ld.userid )
+        , ( "name", JE.string ld.name )
+        , ( "admin", JE.bool ld.admin )
+        , ( "active", JE.bool ld.active )
+        , ( "data", ld.data )
+        ]
+
+
 decodeAdminSettings : JD.Decoder AdminSettings
 decodeAdminSettings =
     JD.succeed AdminSettings

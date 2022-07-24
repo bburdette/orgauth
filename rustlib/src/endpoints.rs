@@ -1,6 +1,6 @@
 use crate::data::{
-  ChangeEmail, ChangePassword, Config, Login, RegistrationData, ResetPassword, SetPassword, User,
-  WhatMessage,
+  ChangeEmail, ChangePassword, Config, Login, LoginData, RegistrationData, ResetPassword,
+  SetPassword, User, WhatMessage,
 };
 use crate::dbfun;
 use crate::email;
@@ -382,6 +382,22 @@ pub fn admin_interface(
       }
       None => Ok(WhatMessage {
         what: "no user id".to_string(),
+        data: None,
+      }),
+    }
+  } else if msg.what == "updateuser" {
+    match &msg.data {
+      Some(v) => {
+        let ld: LoginData = serde_json::from_value(v.clone())?;
+        dbfun::update_login_data(&conn, &ld)?;
+        let uld = dbfun::login_data(&conn, ld.userid)?;
+        Ok(WhatMessage {
+          what: "user updated".to_string(),
+          data: Some(serde_json::to_value(uld)?),
+        })
+      }
+      None => Ok(WhatMessage {
+        what: "no data".to_string(),
         data: None,
       }),
     }

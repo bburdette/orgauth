@@ -86,6 +86,14 @@ pub fn login_data_cb(
   })
 }
 
+pub fn update_login_data(conn: &Connection, ld: &LoginData) -> Result<(), Box<dyn Error>> {
+  let mut user = read_user_by_id(&conn, ld.userid)?;
+  user.name = ld.name.clone();
+  user.admin = ld.admin;
+  user.active = ld.active;
+  update_user(&conn, &user)
+}
+
 pub fn read_users(
   conn: &Connection,
   extra_login_data: &mut Box<
@@ -304,14 +312,16 @@ pub fn purge_tokens(config: &Config) -> Result<(), Box<dyn Error>> {
 
 pub fn update_user(conn: &Connection, user: &User) -> Result<(), Box<dyn Error>> {
   conn.execute(
-    "update orgauth_user set name = ?1, hashwd = ?2, salt = ?3, email = ?4, registration_key = ?5
-           where id = ?6",
+    "update orgauth_user set name = ?1, hashwd = ?2, salt = ?3, email = ?4, registration_key = ?5, admin = ?6, active = ?7
+           where id = ?8",
     params![
       user.name,
       user.hashwd,
       user.salt,
       user.email,
       user.registration_key,
+      user.admin,
+      user.active,
       user.id,
     ],
   )?;

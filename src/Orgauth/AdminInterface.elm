@@ -8,11 +8,13 @@ import Orgauth.Data as Data
 type SendMsg
     = GetUsers
     | DeleteUser Int
+    | UpdateUser Data.LoginData
 
 
 type ServerResponse
     = Users (List Data.LoginData)
     | UserDeleted Int
+    | UserUpdated Data.LoginData
     | ServerError String
     | NotLoggedIn
 
@@ -28,6 +30,9 @@ showServerResponse sr =
 
         UserDeleted _ ->
             "UserDeleted"
+
+        UserUpdated _ ->
+            "UserUpdated"
 
         ServerError _ ->
             "ServerError"
@@ -47,6 +52,12 @@ encodeSendMsg sm =
                 , ( "data", JE.int id )
                 ]
 
+        UpdateUser ld ->
+            JE.object
+                [ ( "what", JE.string "updateuser" )
+                , ( "data", Data.encodeLoginData ld )
+                ]
+
 
 serverResponseDecoder : JD.Decoder ServerResponse
 serverResponseDecoder =
@@ -60,6 +71,9 @@ serverResponseDecoder =
 
                     "user deleted" ->
                         JD.map UserDeleted (JD.at [ "data" ] JD.int)
+
+                    "user updated" ->
+                        JD.map UserUpdated (JD.at [ "data" ] Data.decodeLoginData)
 
                     "not logged in" ->
                         JD.succeed NotLoggedIn
