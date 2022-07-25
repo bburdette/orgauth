@@ -23,9 +23,11 @@ type alias Model =
 
 type Msg
     = DoneClick
+    | RevertClick
     | NameEdit String
     | DeleteClick Int
     | ActiveChecked Bool
+    | AdminChecked Bool
     | SaveClick
     | Noop
 
@@ -102,6 +104,12 @@ view buttonStyle model =
                 , checked = model.active
                 , label = EI.labelLeft [] (E.text "active")
                 }
+            , EI.checkbox []
+                { onChange = AdminChecked
+                , icon = EI.defaultCheckbox
+                , checked = model.admin
+                , label = EI.labelLeft [] (E.text "admin")
+                }
             , model.initialUser
                 |> Maybe.map
                     (\u ->
@@ -115,8 +123,13 @@ view buttonStyle model =
 
               else
                 E.none
-            , EI.button (E.centerX :: buttonStyle)
-                { onPress = Just DoneClick, label = E.text "done" }
+            , if dirty then
+                EI.button (E.centerX :: buttonStyle)
+                    { onPress = Just RevertClick, label = E.text "revert" }
+
+              else
+                EI.button (E.centerX :: buttonStyle)
+                    { onPress = Just DoneClick, label = E.text "done" }
             ]
         ]
 
@@ -126,6 +139,11 @@ update msg model =
     case msg of
         DoneClick ->
             ( model, Done )
+
+        RevertClick ->
+            model.initialUser
+                |> Maybe.map (\ld -> ( init ld, None ))
+                |> Maybe.withDefault ( model, None )
 
         DeleteClick id ->
             ( model, Delete id )
@@ -148,6 +166,9 @@ update msg model =
 
         ActiveChecked active ->
             ( { model | active = active }, None )
+
+        AdminChecked admin ->
+            ( { model | admin = admin }, None )
 
         NameEdit n ->
             ( { model | name = n }, None )
