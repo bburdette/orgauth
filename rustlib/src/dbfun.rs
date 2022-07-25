@@ -38,8 +38,8 @@ pub fn new_user(
 
   // make a user record.
   conn.execute(
-    "insert into orgauth_user (name, hashwd, salt, email, registration_key, createdate)
-      values (?1, ?2, ?3, ?4, ?5, ?6)",
+    "insert into orgauth_user (name, hashwd, salt, email, admin, active, registration_key, createdate)
+      values (?1, ?2, ?3, ?4, 0, 1, ?5, ?6)",
     params![name, hashwd, salt, email, registration_key, now],
   )?;
 
@@ -63,6 +63,8 @@ pub fn login_data(conn: &Connection, uid: i64) -> Result<LoginData, Box<dyn Erro
   Ok(LoginData {
     userid: uid,
     name: user.name,
+    admin: user.admin,
+    active: user.active,
     data: None,
   })
 }
@@ -70,7 +72,7 @@ pub fn login_data(conn: &Connection, uid: i64) -> Result<LoginData, Box<dyn Erro
 pub fn login_data_cb(
   conn: &Connection,
   uid: i64,
-  mut extra_login_data: Box<
+  extra_login_data: &mut Box<
     dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, Box<dyn Error>>,
   >,
 ) -> Result<LoginData, Box<dyn Error>> {
@@ -78,13 +80,49 @@ pub fn login_data_cb(
   Ok(LoginData {
     userid: uid,
     name: user.name,
+    admin: user.admin,
+    active: user.active,
     data: extra_login_data(&conn, uid)?,
   })
 }
 
+pub fn update_login_data(conn: &Connection, ld: &LoginData) -> Result<(), Box<dyn Error>> {
+  let mut user = read_user_by_id(&conn, ld.userid)?;
+  user.name = ld.name.clone();
+  user.admin = ld.admin;
+  user.active = ld.active;
+  update_user(&conn, &user)
+}
+
+pub fn read_users(
+  conn: &Connection,
+  extra_login_data: &mut Box<
+    dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, Box<dyn Error>>,
+  >,
+) -> Result<Vec<LoginData>, Box<dyn Error>> {
+  let mut pstmt = conn.prepare(
+    // return zklinks that link to or from notes that link to 'public'.
+    "select id from user",
+  )?;
+
+  let r = Ok(
+    pstmt
+      .query_map(params![], |row| {
+        let id = row.get(0)?;
+        Ok(id)
+      })?
+      .filter_map(|rid| match rid {
+        Ok(id) => login_data_cb(&conn, id, extra_login_data).ok(),
+        Err(_) => None,
+      })
+      .collect(),
+  );
+  r
+}
+
 pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, Box<dyn Error>> {
   let user = conn.query_row(
-    "select id, hashwd, salt, email, registration_key
+    "select id, hashwd, salt, email, registration_key, admin, active
       from orgauth_user where name = ?1",
     params![name],
     |row| {
@@ -95,6 +133,8 @@ pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, Box<dyn 
         salt: row.get(2)?,
         email: row.get(3)?,
         registration_key: row.get(4)?,
+        admin: row.get(5)?,
+        active: row.get(6)?,
       })
     },
   )?;
@@ -104,7 +144,7 @@ pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, Box<dyn 
 
 pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, Box<dyn Error>> {
   let user = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key
+    "select id, name, hashwd, salt, email, registration_key, admin, active
       from orgauth_user where id = ?1",
     params![id],
     |row| {
@@ -115,6 +155,8 @@ pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, Box<dyn Error
         salt: row.get(3)?,
         email: row.get(4)?,
         registration_key: row.get(5)?,
+        admin: row.get(6)?,
+        active: row.get(7)?,
       })
     },
   )?;
@@ -128,7 +170,7 @@ pub fn read_user_by_token(
   token_expiration_ms: Option<i64>,
 ) -> Result<User, Box<dyn Error>> {
   let (user, tokendate) = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key, orgauth_token.tokendate
+    "select id, name, hashwd, salt, email, registration_key, admin, active, orgauth_token.tokendate
       from orgauth_user, orgauth_token where orgauth_user.id = orgauth_token.user and orgauth_token.token = ?1",
     params![token.to_string()],
     |row| {
@@ -140,21 +182,27 @@ pub fn read_user_by_token(
           salt: row.get(3)?,
           email: row.get(4)?,
           registration_key: row.get(5)?,
+          admin: row.get(6)?,
+          active: row.get(7)?,
         },
-        row.get(6)?,
+        row.get(8)?,
       ))
     },
   )?;
 
-  match token_expiration_ms {
-    Some(texp) => {
-      if is_token_expired(texp, tokendate) {
-        bail!("login expired")
-      } else {
-        Ok(user)
+  if !user.active {
+    bail!("account is inactive")
+  } else {
+    match token_expiration_ms {
+      Some(texp) => {
+        if is_token_expired(texp, tokendate) {
+          bail!("login expired")
+        } else {
+          Ok(user)
+        }
       }
+      None => Ok(user),
     }
-    None => Ok(user),
   }
 }
 
@@ -264,14 +312,16 @@ pub fn purge_tokens(config: &Config) -> Result<(), Box<dyn Error>> {
 
 pub fn update_user(conn: &Connection, user: &User) -> Result<(), Box<dyn Error>> {
   conn.execute(
-    "update orgauth_user set name = ?1, hashwd = ?2, salt = ?3, email = ?4, registration_key = ?5
-           where id = ?6",
+    "update orgauth_user set name = ?1, hashwd = ?2, salt = ?3, email = ?4, registration_key = ?5, admin = ?6, active = ?7
+           where id = ?8",
     params![
       user.name,
       user.hashwd,
       user.salt,
       user.email,
       user.registration_key,
+      user.admin,
+      user.active,
       user.id,
     ],
   )?;
@@ -421,3 +471,14 @@ pub fn change_email(
   }
 }
 
+pub fn delete_user(conn: &Connection, uid: i64) -> Result<(), Box<dyn Error>> {
+  conn.execute("delete from orgauth_token where user = ?1", params!(uid))?;
+  conn.execute("delete from orgauth_newemail where user = ?1", params!(uid))?;
+  conn.execute(
+    "delete from orgauth_newpassword where user = ?1",
+    params!(uid),
+  )?;
+  conn.execute("delete from orgauth_user where id = ?1", params!(uid))?;
+
+  Ok(())
+}

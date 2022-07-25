@@ -1,6 +1,6 @@
 use barrel::backend::Sqlite;
 use barrel::{types, Migration};
-use rusqlite::Connection;
+use rusqlite::{params, Connection};
 use std::error::Error;
 use std::path::Path;
 
@@ -9,7 +9,7 @@ pub fn udpate1(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   let conn = Connection::open(dbfile)?;
   let mut m = Migration::new();
 
-  // new user table with new columns for session tokens.
+  // user table
   m.create_table("orgauth_user", |t| {
     t.add_column(
       "id",
@@ -61,6 +61,71 @@ pub fn udpate1(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   });
 
   conn.execute_batch(m.make::<Sqlite>().as_str())?;
+
+  Ok(())
+}
+
+pub fn udpate2(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+  // db connection without foreign key checking.
+  let conn = Connection::open(dbfile)?;
+  let mut m1 = Migration::new();
+
+  // temp table for user data.
+  m1.create_table("orgauth_user_temp", |t| {
+    t.add_column(
+      "id",
+      types::integer()
+        .primary(true)
+        .increments(true)
+        .nullable(false),
+    );
+    t.add_column("name", types::text().nullable(false).unique(true));
+    t.add_column("hashwd", types::text().nullable(false));
+    t.add_column("salt", types::text().nullable(false));
+    t.add_column("email", types::text().nullable(false));
+    t.add_column("registration_key", types::text().nullable(true));
+    t.add_column("createdate", types::integer().nullable(false));
+  });
+
+  conn.execute_batch(m1.make::<Sqlite>().as_str())?;
+
+  // copy everything from zknotetemp.
+  conn.execute(
+    "insert into orgauth_user_temp (id, name, hashwd, salt, email, registration_key, createdate)
+        select id, name, hashwd, salt, email, registration_key, createdate from orgauth_user",
+    params![],
+  )?;
+
+  let mut m2 = Migration::new();
+  m2.drop_table("orgauth_user");
+
+  m2.create_table("orgauth_user", |t| {
+    t.add_column(
+      "id",
+      types::integer()
+        .primary(true)
+        .increments(true)
+        .nullable(false),
+    );
+    t.add_column("name", types::text().nullable(false).unique(true));
+    t.add_column("hashwd", types::text().nullable(false));
+    t.add_column("salt", types::text().nullable(false));
+    t.add_column("email", types::text().nullable(false));
+    t.add_column("registration_key", types::text().nullable(true));
+    t.add_column("admin", types::boolean().nullable(false));
+    t.add_column("active", types::boolean().nullable(false));
+    t.add_column("createdate", types::integer().nullable(false));
+  });
+
+  conn.execute_batch(m2.make::<Sqlite>().as_str())?;
+
+  conn.execute(
+    "insert into orgauth_user (id, name, hashwd, salt, email, registration_key, admin, active, createdate)
+        select id, name, hashwd, salt, email, registration_key, 0, 1, createdate from orgauth_user_temp",
+    params![],
+  )?;
+
+  conn.execute("drop table orgauth_user_temp", params![])?;
 
   Ok(())
 }

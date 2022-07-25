@@ -1,6 +1,6 @@
-use crate::data::Config;
 use crate::data::{
-  ChangeEmail, ChangePassword, Login, RegistrationData, ResetPassword, SetPassword, WhatMessage,
+  ChangeEmail, ChangePassword, Config, Login, LoginData, RegistrationData, ResetPassword,
+  SetPassword, User, WhatMessage,
 };
 use crate::dbfun;
 use crate::email;
@@ -10,7 +10,7 @@ use actix_session::Session;
 use actix_web::{HttpRequest, HttpResponse};
 use crypto_hash::{hex_digest, Algorithm};
 use log::{error, info};
-use rusqlite::Connection;
+use rusqlite::{params, Connection};
 use std::error::Error;
 use std::str::FromStr;
 use util::now;
@@ -21,6 +21,7 @@ pub struct Callbacks {
     Box<dyn FnMut(&Connection, &RegistrationData, i64) -> Result<(), Box<dyn Error>>>,
   pub extra_login_data:
     Box<dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, Box<dyn Error>>>,
+  pub on_delete_user: Box<dyn FnMut(&Connection, i64) -> Result<bool, Box<dyn Error>>>,
 }
 
 pub fn user_interface(
@@ -34,6 +35,11 @@ pub fn user_interface(
   if msg.what.as_str() == "register" {
     let msgdata = Option::ok_or(msg.data, "malformed registration data")?;
     let rd: RegistrationData = serde_json::from_value(msgdata)?;
+    if !config.open_registration {
+      return Err(Box::new(simple_error::SimpleError::new(format!(
+        "new user registration is disabled",
+      ))));
+    }
     // do the registration thing.
     // user already exists?
     match dbfun::read_user_by_name(&conn, rd.uid.as_str()) {
@@ -68,7 +74,7 @@ pub fn user_interface(
         // send a registration email.
         email::send_registration(
           config.appname.as_str(),
-          config.domain.as_str(),
+          config.emaildomain.as_str(),
           config.mainsite.as_str(),
           rd.email.as_str(),
           rd.uid.as_str(),
@@ -78,7 +84,7 @@ pub fn user_interface(
         // notify the admin.
         email::send_registration_notification(
           config.appname.as_str(),
-          config.domain.as_str(),
+          config.emaildomain.as_str(),
           config.admin_email.as_str(),
           rd.email.as_str(),
           rd.uid.as_str(),
@@ -102,32 +108,39 @@ pub fn user_interface(
         data: Option::None,
       }),
       None => {
-        if hex_digest(
-          Algorithm::SHA256,
-          (login.pwd.clone() + userdata.salt.as_str())
-            .into_bytes()
-            .as_slice(),
-        ) != userdata.hashwd
-        {
-          // don't distinguish between bad user id and bad pwd!
-          Ok(WhatMessage {
-            what: "invalid user or pwd".to_string(),
-            data: Option::None,
-          })
-        } else {
-          let mut ld = dbfun::login_data(&conn, userdata.id)?;
-          let data = (callbacks.extra_login_data)(&conn, ld.userid)?;
-          ld.data = data;
-          // new token here, and token date.
-          let token = Uuid::new_v4();
-          dbfun::add_token(&conn, userdata.id, token)?;
-          session.set("token", token)?;
-          dbfun::update_user(&conn, &userdata)?;
-          info!("logged in, user: {:?}", userdata.name);
+        if userdata.active {
+          if hex_digest(
+            Algorithm::SHA256,
+            (login.pwd.clone() + userdata.salt.as_str())
+              .into_bytes()
+              .as_slice(),
+          ) != userdata.hashwd
+          {
+            // don't distinguish between bad user id and bad pwd!
+            Ok(WhatMessage {
+              what: "invalid user or pwd".to_string(),
+              data: Option::None,
+            })
+          } else {
+            let mut ld = dbfun::login_data(&conn, userdata.id)?;
+            let data = (callbacks.extra_login_data)(&conn, ld.userid)?;
+            ld.data = data;
+            // new token here, and token date.
+            let token = Uuid::new_v4();
+            dbfun::add_token(&conn, userdata.id, token)?;
+            session.set("token", token)?;
+            dbfun::update_user(&conn, &userdata)?;
+            info!("logged in, user: {:?}", userdata.name);
 
+            Ok(WhatMessage {
+              what: "logged in".to_string(),
+              data: Option::Some(serde_json::to_value(ld)?),
+            })
+          }
+        } else {
           Ok(WhatMessage {
-            what: "logged in".to_string(),
-            data: Option::Some(serde_json::to_value(ld)?),
+            what: "account inactive".to_string(),
+            data: None,
           })
         }
       }
@@ -158,7 +171,7 @@ pub fn user_interface(
         // send reset email.
         email::send_reset(
           config.appname.as_str(),
-          config.domain.as_str(),
+          config.emaildomain.as_str(),
           config.mainsite.as_str(),
           userdata.email.as_str(),
           userdata.name.as_str(),
@@ -260,7 +273,7 @@ pub fn user_interface_loggedin(
     // send a confirmation email.
     email::send_newemail_confirmation(
       config.appname.as_str(),
-      config.domain.as_str(),
+      config.emaildomain.as_str(),
       config.mainsite.as_str(),
       cp.email.as_str(),
       name.as_str(),
@@ -271,6 +284,107 @@ pub fn user_interface_loggedin(
       what: "changed email".to_string(),
       data: None,
     })
+  } else {
+    Err(Box::new(simple_error::SimpleError::new(format!(
+      "invalid 'what' code:'{}'",
+      msg.what
+    ))))
+  }
+}
+
+pub fn admin_interface_check(
+  session: &Session,
+  config: &Config,
+  callbacks: &mut Callbacks,
+  msg: WhatMessage,
+) -> Result<WhatMessage, Box<dyn Error>> {
+  match session.get::<Uuid>("token")? {
+    None => Ok(WhatMessage {
+      what: "not logged in".to_string(),
+      data: Some(serde_json::Value::Null),
+    }),
+    Some(token) => {
+      let conn = dbfun::connection_open(config.db.as_path())?;
+      match dbfun::read_user_by_token(&conn, token, Some(config.login_token_expiration_ms)) {
+        Err(e) => {
+          info!("read_user_by_token error: {:?}", e);
+
+          Ok(WhatMessage {
+            what: "invalid user or pwd".to_string(),
+            data: Some(serde_json::Value::Null),
+          })
+        }
+        Ok(userdata) => {
+          if userdata.admin {
+            // finally!  processing messages as logged in user.
+            admin_interface(&conn, &config, &userdata, callbacks, &msg)
+          } else {
+            Ok(WhatMessage {
+              what: "access denied".to_string(),
+              data: Some(serde_json::Value::Null),
+            })
+          }
+        }
+      }
+    }
+  }
+}
+
+pub fn admin_interface(
+  conn: &Connection,
+  _config: &Config,
+  _user: &User,
+  callbacks: &mut Callbacks,
+  msg: &WhatMessage,
+) -> Result<WhatMessage, Box<dyn Error>> {
+  if msg.what == "getusers" {
+    let users = dbfun::read_users(&conn, &mut callbacks.extra_login_data)?;
+
+    Ok(WhatMessage {
+      what: "users".to_string(),
+      data: Some(serde_json::to_value(users)?),
+    })
+  } else if msg.what == "deleteuser" {
+    match &msg.data {
+      Some(v) => {
+        let uid: i64 = serde_json::from_value(v.clone())?;
+        conn.execute("begin transaction", params!())?;
+        if (callbacks.on_delete_user)(&conn, uid)? {
+          dbfun::delete_user(&conn, uid)?;
+          conn.execute("commit", params!())?;
+          Ok(WhatMessage {
+            what: "user deleted".to_string(),
+            data: Some(serde_json::to_value(uid)?),
+          })
+        } else {
+          conn.execute("rollback", params!())?;
+          Ok(WhatMessage {
+            what: "user NOT deleted".to_string(),
+            data: Some(serde_json::to_value(uid)?),
+          })
+        }
+      }
+      None => Ok(WhatMessage {
+        what: "no user id".to_string(),
+        data: None,
+      }),
+    }
+  } else if msg.what == "updateuser" {
+    match &msg.data {
+      Some(v) => {
+        let ld: LoginData = serde_json::from_value(v.clone())?;
+        dbfun::update_login_data(&conn, &ld)?;
+        let uld = dbfun::login_data(&conn, ld.userid)?;
+        Ok(WhatMessage {
+          what: "user updated".to_string(),
+          data: Some(serde_json::to_value(uld)?),
+        })
+      }
+      None => Ok(WhatMessage {
+        what: "no data".to_string(),
+        data: None,
+      }),
+    }
   } else {
     Err(Box::new(simple_error::SimpleError::new(format!(
       "invalid 'what' code:'{}'",

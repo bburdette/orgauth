@@ -6,19 +6,33 @@ use uuid::Uuid;
 pub struct Config {
   pub mainsite: String,
   pub appname: String,
-  pub domain: String,
+  pub emaildomain: String,
   pub db: PathBuf,
   pub admin_email: String,
   pub login_token_expiration_ms: i64,
   pub email_token_expiration_ms: i64,
   pub reset_token_expiration_ms: i64,
+  pub open_registration: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LoginData {
   pub userid: i64,
   pub name: String,
+  pub admin: bool,
+  pub active: bool,
   pub data: Option<serde_json::Value>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AdminSettings {
+  pub open_registration: bool,
+}
+
+pub fn admin_settings(config: &Config) -> AdminSettings {
+  AdminSettings {
+    open_registration: config.open_registration,
+  }
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
@@ -29,6 +43,8 @@ pub struct User {
   pub salt: String,
   pub email: String,
   pub registration_key: Option<String>,
+  pub admin: bool,
+  pub active: bool,
 }
 
 #[derive(Deserialize, Debug)]
