@@ -37,7 +37,7 @@ pub fn user_interface(
     let rd: RegistrationData = serde_json::from_value(msgdata)?;
     if !config.open_registration {
       return Err(Box::new(simple_error::SimpleError::new(format!(
-        "new user registration is deactivated",
+        "new user registration is disabled",
       ))));
     }
     // do the registration thing.
