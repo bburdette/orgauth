@@ -74,7 +74,7 @@ view buttonStyle model =
 
 update : Msg -> Model -> ( Model, Command )
 update msg model =
-    case Debug.log "msg" msg of
+    case msg of
         DoneClick ->
             ( model, Done )
 
