@@ -310,8 +310,15 @@ pub fn admin_interface_check(
           })
         }
         Ok(userdata) => {
-          // finally!  processing messages as logged in user.
-          admin_interface(&conn, &config, &userdata, callbacks, &msg)
+          if userdata.admin {
+            // finally!  processing messages as logged in user.
+            admin_interface(&conn, &config, &userdata, callbacks, &msg)
+          } else {
+            Ok(WhatMessage {
+              what: "access denied".to_string(),
+              data: Some(serde_json::Value::Null),
+            })
+          }
         }
       }
     }
@@ -332,41 +339,6 @@ pub fn admin_interface(
       what: "users".to_string(),
       data: Some(serde_json::to_value(users)?),
     })
-
-    // must be logged in and admin.
-    // let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
-    // let set_password: SetPassword = serde_json::from_value(msgdata.clone())?;
-
-    // let mut userdata = dbfun::read_user_by_name(&conn, set_password.uid.as_str())?;
-    // match userdata.registration_key {
-    //   Some(_reg_key) => Ok(WhatMessage {
-    //     what: "unregistered user".to_string(),
-    //     data: Option::None,
-    //   }),
-    //   None => {
-    //     let npwd = dbfun::read_newpassword(&conn, userdata.id, set_password.reset_key)?;
-
-    //     if is_token_expired(config.reset_token_expiration_ms, npwd) {
-    //       Ok(WhatMessage {
-    //         what: "password reset failed".to_string(),
-    //         data: Option::None,
-    //       })
-    //     } else {
-    //       userdata.hashwd = hex_digest(
-    //         Algorithm::SHA256,
-    //         (set_password.newpwd + userdata.salt.as_str())
-    //           .into_bytes()
-    //           .as_slice(),
-    //       );
-    //       dbfun::remove_newpassword(&conn, userdata.id, set_password.reset_key)?;
-    //       dbfun::update_user(&conn, &userdata)?;
-    //       Ok(WhatMessage {
-    //         what: "setpasswordack".to_string(),
-    //         data: Option::None,
-    //       })
-    //     }
-    //   }
-    // }
   } else if msg.what == "deleteuser" {
     match &msg.data {
       Some(v) => {

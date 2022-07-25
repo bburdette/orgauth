@@ -1,7 +1,5 @@
 module Orgauth.Login exposing (Cmd(..), Mode(..), Model, Msg(..), initialModel, invalidUserOrPwd, loginView, makeUrlP, onWkKeyPress, registrationSent, registrationView, sentView, unregisteredUser, update, urlToState, userExists, view)
 
--- import TcCommon as TC
-
 import Common exposing (buttonStyle)
 import Dict exposing (Dict)
 import Element exposing (..)
