@@ -6,7 +6,7 @@ use uuid::Uuid;
 pub struct Config {
   pub mainsite: String,
   pub appname: String,
-  pub domain: String,
+  pub emaildomain: String,
   pub db: PathBuf,
   pub admin_email: String,
   pub login_token_expiration_ms: i64,

@@ -38,8 +38,8 @@ pub fn new_user(
 
   // make a user record.
   conn.execute(
-    "insert into orgauth_user (name, hashwd, salt, email, registration_key, createdate)
-      values (?1, ?2, ?3, ?4, ?5, ?6)",
+    "insert into orgauth_user (name, hashwd, salt, email, admin, active, registration_key, createdate)
+      values (?1, ?2, ?3, ?4, 0, 1, ?5, ?6)",
     params![name, hashwd, salt, email, registration_key, now],
   )?;
 

@@ -35,6 +35,11 @@ pub fn user_interface(
   if msg.what.as_str() == "register" {
     let msgdata = Option::ok_or(msg.data, "malformed registration data")?;
     let rd: RegistrationData = serde_json::from_value(msgdata)?;
+    if !config.open_registration {
+      return Err(Box::new(simple_error::SimpleError::new(format!(
+        "new user registration is deactivated",
+      ))));
+    }
     // do the registration thing.
     // user already exists?
     match dbfun::read_user_by_name(&conn, rd.uid.as_str()) {
@@ -69,7 +74,7 @@ pub fn user_interface(
         // send a registration email.
         email::send_registration(
           config.appname.as_str(),
-          config.domain.as_str(),
+          config.emaildomain.as_str(),
           config.mainsite.as_str(),
           rd.email.as_str(),
           rd.uid.as_str(),
@@ -79,7 +84,7 @@ pub fn user_interface(
         // notify the admin.
         email::send_registration_notification(
           config.appname.as_str(),
-          config.domain.as_str(),
+          config.emaildomain.as_str(),
           config.admin_email.as_str(),
           rd.email.as_str(),
           rd.uid.as_str(),
@@ -166,7 +171,7 @@ pub fn user_interface(
         // send reset email.
         email::send_reset(
           config.appname.as_str(),
-          config.domain.as_str(),
+          config.emaildomain.as_str(),
           config.mainsite.as_str(),
           userdata.email.as_str(),
           userdata.name.as_str(),
@@ -268,7 +273,7 @@ pub fn user_interface_loggedin(
     // send a confirmation email.
     email::send_newemail_confirmation(
       config.appname.as_str(),
-      config.domain.as_str(),
+      config.emaildomain.as_str(),
       config.mainsite.as_str(),
       cp.email.as_str(),
       name.as_str(),
