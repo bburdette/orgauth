@@ -63,6 +63,7 @@ pub fn login_data(conn: &Connection, uid: i64) -> Result<LoginData, Box<dyn Erro
   Ok(LoginData {
     userid: uid,
     name: user.name,
+    email: user.email,
     admin: user.admin,
     active: user.active,
     data: None,
@@ -80,6 +81,7 @@ pub fn login_data_cb(
   Ok(LoginData {
     userid: uid,
     name: user.name,
+    email: user.email,
     admin: user.admin,
     active: user.active,
     data: extra_login_data(&conn, uid)?,
@@ -89,6 +91,7 @@ pub fn login_data_cb(
 pub fn update_login_data(conn: &Connection, ld: &LoginData) -> Result<(), Box<dyn Error>> {
   let mut user = read_user_by_id(&conn, ld.userid)?;
   user.name = ld.name.clone();
+  user.email = ld.email.clone();
   user.admin = ld.admin;
   user.active = ld.active;
   update_user(&conn, &user)

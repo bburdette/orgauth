@@ -52,6 +52,7 @@ type alias ChangeEmail =
 type alias LoginData =
     { userid : Int
     , name : String
+    , email : String
     , admin : Bool
     , active : Bool
     , data : JD.Value
@@ -123,6 +124,7 @@ decodeLoginData =
     JD.succeed LoginData
         |> andMap (JD.field "userid" JD.int)
         |> andMap (JD.field "name" JD.string)
+        |> andMap (JD.field "email" JD.string)
         |> andMap (JD.field "admin" JD.bool)
         |> andMap (JD.field "active" JD.bool)
         |> andMap (JD.field "data" JD.value)
@@ -133,6 +135,7 @@ encodeLoginData ld =
     JE.object
         [ ( "userid", JE.int ld.userid )
         , ( "name", JE.string ld.name )
+        , ( "email", JE.string ld.email )
         , ( "admin", JE.bool ld.admin )
         , ( "active", JE.bool ld.active )
         , ( "data", ld.data )
@@ -151,10 +154,11 @@ decodeAdminSettings =
 ------------------------------------------------
 
 
-toLd : { a | userid : Int, name : String, admin : Bool, active : Bool } -> LoginData
+toLd : { a | userid : Int, name : String, email : String, admin : Bool, active : Bool } -> LoginData
 toLd ld =
     { userid = ld.userid
     , name = ld.name
+    , email = ld.email
     , admin = ld.admin
     , active = ld.active
     , data = JE.null

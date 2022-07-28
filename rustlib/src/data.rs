@@ -19,6 +19,7 @@ pub struct Config {
 pub struct LoginData {
   pub userid: i64,
   pub name: String,
+  pub email: String,
   pub admin: bool,
   pub active: bool,
   pub data: Option<serde_json::Value>,

@@ -15,6 +15,7 @@ import Util
 
 type alias Model =
     { name : String
+    , email : String
     , admin : Bool
     , active : Bool
     , initialUser : Maybe Data.LoginData
@@ -25,6 +26,7 @@ type Msg
     = DoneClick
     | RevertClick
     | NameEdit String
+    | EmailEdit String
     | DeleteClick Int
     | ActiveChecked Bool
     | AdminChecked Bool
@@ -42,6 +44,7 @@ type Command
 init : Data.LoginData -> Model
 init ld =
     { name = ld.name
+    , email = ld.email
     , admin = ld.admin
     , active = ld.active
     , initialUser = Just ld
@@ -51,6 +54,7 @@ init ld =
 initNew : Model
 initNew =
     { name = ""
+    , email = ""
     , admin = False
     , active = False
     , initialUser = Nothing
@@ -70,6 +74,8 @@ isDirty model =
                 not
                     (model.name
                         == initialUser.name
+                        && model.email
+                        == initialUser.email
                         && model.admin
                         == initialUser.admin
                         && model.active
@@ -96,6 +102,12 @@ view buttonStyle model =
             , text = model.name
             , placeholder = Nothing
             , label = EI.labelLeft [] (E.text "name")
+            }
+        , EI.text []
+            { onChange = EmailEdit
+            , text = model.email
+            , placeholder = Nothing
+            , label = EI.labelLeft [] (E.text "email")
             }
         , E.row [ E.width E.fill, E.spacing 10 ]
             [ EI.checkbox []
@@ -156,6 +168,7 @@ update msg model =
                         , Save
                             { userid = ld.userid
                             , name = model.name
+                            , email = model.email
                             , admin = model.admin
                             , active = model.active
                             , data = ld.data
@@ -170,8 +183,11 @@ update msg model =
         AdminChecked admin ->
             ( { model | admin = admin }, None )
 
-        NameEdit n ->
-            ( { model | name = n }, None )
+        NameEdit s ->
+            ( { model | name = s }, None )
+
+        EmailEdit s ->
+            ( { model | email = s }, None )
 
         Noop ->
             ( model, None )
