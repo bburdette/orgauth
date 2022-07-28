@@ -364,6 +364,7 @@ pub fn read_newemail(
   )?;
   Ok(result)
 }
+
 // email change request.
 pub fn remove_newemail(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dyn Error>> {
   conn.execute(
@@ -405,6 +406,22 @@ pub fn remove_newpassword(conn: &Connection, user: i64, token: Uuid) -> Result<(
     "delete from orgauth_newpassword
      where user = ?1 and token = ?2",
     params![user, token.to_string()],
+  )?;
+
+  Ok(())
+}
+
+// email change request.
+pub fn add_userinvite(
+  conn: &Connection,
+  token: Uuid,
+  email: Option<String>,
+) -> Result<(), Box<dyn Error>> {
+  let now = now()?;
+  conn.execute(
+    "insert into orgauth_user_invite (email, token, tokendate)
+     values (?1, ?2, ?3)",
+    params![email, token.to_string(), now],
   )?;
 
   Ok(())

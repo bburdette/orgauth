@@ -1,6 +1,6 @@
 use crate::data::{
   ChangeEmail, ChangePassword, Config, Login, LoginData, RegistrationData, ResetPassword,
-  SetPassword, User, WhatMessage,
+  SetPassword, User, UserInvite, WhatMessage,
 };
 use crate::dbfun;
 use crate::email;
@@ -332,14 +332,13 @@ pub fn admin_interface_check(
 
 pub fn admin_interface(
   conn: &Connection,
-  _config: &Config,
+  config: &Config,
   _user: &User,
   callbacks: &mut Callbacks,
   msg: &WhatMessage,
 ) -> Result<WhatMessage, Box<dyn Error>> {
   if msg.what == "getusers" {
     let users = dbfun::read_users(&conn, &mut callbacks.extra_login_data)?;
-
     Ok(WhatMessage {
       what: "users".to_string(),
       data: Some(serde_json::to_value(users)?),
@@ -385,6 +384,18 @@ pub fn admin_interface(
         data: None,
       }),
     }
+  } else if msg.what == "getinvite" {
+    let invite_key = Uuid::new_v4();
+
+    // make 'newpassword' record.
+    dbfun::add_userinvite(&conn, invite_key.clone(), None)?;
+    Ok(WhatMessage {
+      what: "user invite".to_string(),
+      data: Some(serde_json::to_value(UserInvite {
+        email: None,
+        url: format!("{}/user/invite/{}", config.mainsite, invite_key.to_string()),
+      })?),
+    })
   } else {
     Err(Box::new(simple_error::SimpleError::new(format!(
       "invalid 'what' code:'{}'",

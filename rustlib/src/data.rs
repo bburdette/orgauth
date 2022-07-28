@@ -48,6 +48,12 @@ pub struct User {
   pub active: bool,
 }
 
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct UserInvite {
+  pub email: Option<String>,
+  pub url: String,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct RegistrationData {
   pub uid: String,
