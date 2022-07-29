@@ -48,12 +48,12 @@ type Cmd
     | None
 
 
-initialModel : String -> Data.AdminSettings -> String -> Model
+initialModel : Data.UserInvite -> Data.AdminSettings -> String -> Model
 initialModel invite adminSettings appname =
     { userId = ""
     , password = ""
-    , email = ""
-    , invite = invite
+    , email = invite.email |> Maybe.withDefault ""
+    , invite = invite.token
     , sent = False
     , responseMessage = ""
     , appname = appname

@@ -142,7 +142,7 @@ pub fn user_interface(
             )))
           }
           Err(e) => return Err(e),
-          Ok(_) => (),
+          Ok(Some(_)) => (),
         }
 
         // delete the invite.
@@ -194,6 +194,23 @@ pub fn user_interface(
         // respond with login.
         log_user_in(session, callbacks, &conn, uid)
       }
+    }
+  } else if msg.what == "GetInvite" {
+    let msgdata = Option::ok_or(msg.data, "malformed registration data")?;
+    let token: String = serde_json::from_value(msgdata)?;
+    match dbfun::read_userinvite(&conn, token.as_str()) {
+      Ok(None) => Err(Box::new(simple_error::SimpleError::new(
+        "user invite not found",
+      ))),
+      Err(e) => Err(e),
+      Ok(Some((email, _tokendate))) => Ok(WhatMessage {
+        what: "user invite".to_string(),
+        data: Some(serde_json::to_value(UserInvite {
+          email: email,
+          token: token.clone(),
+          url: format!("{}/invite/{}", config.mainsite, token),
+        })?),
+      }),
     }
   } else if msg.what == "login" {
     let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
@@ -472,12 +489,12 @@ pub fn admin_interface(
   } else if msg.what == "getinvite" {
     let invite_key = Uuid::new_v4();
 
-    // make 'newpassword' record.
     dbfun::add_userinvite(&conn, invite_key.clone(), None)?;
     Ok(WhatMessage {
       what: "user invite".to_string(),
       data: Some(serde_json::to_value(UserInvite {
         email: None,
+        token: invite_key.to_string(),
         url: format!("{}/invite/{}", config.mainsite, invite_key.to_string()),
       })?),
     })

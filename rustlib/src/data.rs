@@ -52,6 +52,7 @@ pub struct User {
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct UserInvite {
   pub email: Option<String>,
+  pub token: String,
   pub url: String,
 }
 

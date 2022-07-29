@@ -69,6 +69,7 @@ type alias LoginData =
 
 type alias UserInvite =
     { url : String
+    , token : String
     , email : Maybe String
     }
 
@@ -176,6 +177,7 @@ decodeUserInvite : JD.Decoder UserInvite
 decodeUserInvite =
     JD.succeed UserInvite
         |> andMap (JD.field "url" JD.string)
+        |> andMap (JD.field "token" JD.string)
         |> andMap (JD.maybe (JD.field "email" JD.string))
 
 
