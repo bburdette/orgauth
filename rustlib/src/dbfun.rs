@@ -301,6 +301,33 @@ pub fn purge_reset_tokens(
   Ok(())
 }
 
+pub fn purge_user_invites(
+  conn: &Connection,
+  token_expiration_ms: i64,
+) -> Result<(), Box<dyn Error>> {
+  let now = now()?;
+  let expdt = now - token_expiration_ms;
+
+  let count: i64 = conn.query_row(
+    "select count(*) from
+      orgauth_user_invite where tokendate < ?1",
+    params![expdt],
+    |row| Ok(row.get(0)?),
+  )?;
+
+  if count > 0 {
+    info!("removing {} expired orgauth_user_invite records", count);
+
+    conn.execute(
+      "delete from orgauth_user_invite
+        where tokendate < ?1",
+      params![expdt],
+    )?;
+  }
+
+  Ok(())
+}
+
 pub fn purge_tokens(config: &Config) -> Result<(), Box<dyn Error>> {
   let conn = connection_open(config.db.as_path())?;
 
@@ -310,6 +337,7 @@ pub fn purge_tokens(config: &Config) -> Result<(), Box<dyn Error>> {
 
   purge_reset_tokens(&conn, config.reset_token_expiration_ms)?;
 
+  purge_user_invites(&conn, config.invite_token_expiration_ms)?;
   Ok(())
 }
 
@@ -422,6 +450,17 @@ pub fn add_userinvite(
     "insert into orgauth_user_invite (email, token, tokendate)
      values (?1, ?2, ?3)",
     params![email, token.to_string(), now],
+  )?;
+
+  Ok(())
+}
+
+// email change request.
+pub fn remove_userinvite(conn: &Connection, token: String) -> Result<(), Box<dyn Error>> {
+  conn.execute(
+    "delete from orgauth_user_invite
+     where token = ?1",
+    params![token],
   )?;
 
   Ok(())

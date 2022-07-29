@@ -134,7 +134,9 @@ pub fn user_interface(
       }
       Err(_) => {
         // user does not exist, which is what we want for a new user.
-        // get email from 'data'.i
+        // get email from 'data'.
+
+        dbfun::remove_userinvite(&conn, rsvp.invite)?;
 
         // let registration_key = Uuid::new_v4().to_string();
         let salt = util::salt_string();
@@ -170,9 +172,14 @@ pub fn user_interface(
         ) {
           Ok(_) => (),
           Err(e) => {
-            info!("error sending rsvp notification for user: {}", rd.uid)
+            info!(
+              "error sending rsvp notification for user: {}, {}",
+              rd.uid, e
+            )
           }
         }
+
+        // delete the invite record.
 
         // respond with login.
         log_user_in(session, callbacks, &conn, uid)

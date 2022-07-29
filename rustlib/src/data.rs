@@ -12,6 +12,7 @@ pub struct Config {
   pub login_token_expiration_ms: i64,
   pub email_token_expiration_ms: i64,
   pub reset_token_expiration_ms: i64,
+  pub invite_token_expiration_ms: i64,
   pub open_registration: bool,
 }
 
