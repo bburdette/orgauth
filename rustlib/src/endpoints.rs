@@ -141,16 +141,14 @@ pub fn user_interface(
               "user invite not found",
             )))
           }
-          Ok(wat) => {
-            println!("user invite: {:?}", wat);
-            ()
-          }
           Err(e) => return Err(e),
+          Ok(_) => (),
         }
 
+        // delete the invite.
+        dbfun::remove_userinvite(&conn, &rsvp.invite.as_str())?;
         // user does not exist, which is what we want for a new user.
         // get email from 'data'.
-        dbfun::remove_userinvite(&conn, &rsvp.invite.as_str())?;
 
         // let registration_key = Uuid::new_v4().to_string();
         let salt = util::salt_string();
@@ -192,8 +190,6 @@ pub fn user_interface(
             )
           }
         }
-
-        // delete the invite record.
 
         // respond with login.
         log_user_in(session, callbacks, &conn, uid)
