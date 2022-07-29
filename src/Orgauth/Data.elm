@@ -19,6 +19,14 @@ type alias Registration =
     }
 
 
+type alias RSVP =
+    { uid : String
+    , pwd : String
+    , email : String
+    , invite : String
+    }
+
+
 type alias Login =
     { uid : String
     , pwd : String
@@ -90,6 +98,16 @@ encodeLogin l =
     JE.object
         [ ( "uid", JE.string l.uid )
         , ( "pwd", JE.string l.pwd )
+        ]
+
+
+encodeRSVP : RSVP -> JE.Value
+encodeRSVP l =
+    JE.object
+        [ ( "uid", JE.string l.uid )
+        , ( "pwd", JE.string l.pwd )
+        , ( "email", JE.string l.email )
+        , ( "invite", JE.string l.invite )
         ]
 
 

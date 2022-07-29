@@ -155,3 +155,29 @@ pub fn send_registration_notification(
   // Send the email
   mailer.send(email.into()).map_err(|e| e.into())
 }
+
+pub fn send_rsvp_notification(
+  appname: &str,
+  domain: &str,
+  adminemail: &str,
+  email: &str,
+  uid: &str,
+) -> Result<Response, Box<dyn Error>> {
+  info!("sending rsvp notification to admin!");
+  let email = EmailBuilder::new()
+    .from(format!("no-reply@{}", domain).to_string())
+    .to(adminemail)
+    .subject(format!("{} new rsvp, uid: {}", appname, uid).to_string())
+    .text(
+      (format!(
+        "Someones has rsvped to a new-user invite for {}! {}, {}",
+        appname, uid, email
+      ))
+      .as_str(),
+    )
+    .build()?;
+
+  let mut mailer = SmtpTransport::new(SmtpClient::new_unencrypted_localhost()?);
+  // Send the email
+  mailer.send(email.into()).map_err(|e| e.into())
+}

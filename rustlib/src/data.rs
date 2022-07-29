@@ -62,6 +62,14 @@ pub struct RegistrationData {
 }
 
 #[derive(Deserialize, Debug)]
+pub struct RSVP {
+  pub uid: String,
+  pub pwd: String,
+  pub email: String,
+  pub invite: String,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct Login {
   pub uid: String,
   pub pwd: String,

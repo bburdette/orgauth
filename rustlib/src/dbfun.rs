@@ -32,7 +32,7 @@ pub fn new_user(
   hashwd: String,
   salt: String,
   email: String,
-  registration_key: String,
+  registration_key: Option<String>,
 ) -> Result<i64, Box<dyn Error>> {
   let now = now()?;
 

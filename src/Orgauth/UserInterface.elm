@@ -8,6 +8,7 @@ import Orgauth.Data as Data
 type SendMsg
     = Register Data.Registration
     | Login Data.Login
+    | RSVP Data.RSVP
     | ResetPassword Data.ResetPassword
     | SetPassword Data.SetPassword
     | Logout
@@ -83,6 +84,12 @@ encodeSendMsg sm =
             JE.object
                 [ ( "what", JE.string "login" )
                 , ( "data", Data.encodeLogin login )
+                ]
+
+        RSVP rsvp ->
+            JE.object
+                [ ( "what", JE.string "rsvp" )
+                , ( "data", Data.encodeRSVP rsvp )
                 ]
 
         Logout ->

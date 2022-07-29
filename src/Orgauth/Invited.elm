@@ -27,6 +27,7 @@ type alias Model =
     { userId : String
     , password : String
     , email : String
+    , invite : String
     , responseMessage : String
     , sent : Bool
     , appname : String
@@ -47,11 +48,12 @@ type Cmd
     | None
 
 
-initialModel : Data.AdminSettings -> String -> Model
-initialModel adminSettings appname =
+initialModel : String -> Data.AdminSettings -> String -> Model
+initialModel invite adminSettings appname =
     { userId = ""
     , password = ""
     , email = ""
+    , invite = invite
     , sent = False
     , responseMessage = ""
     , appname = appname
