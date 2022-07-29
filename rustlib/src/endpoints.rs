@@ -133,10 +133,24 @@ pub fn user_interface(
         })
       }
       Err(_) => {
+        // invite exists?
+        info!("rsvp: {:?}", rsvp);
+        match dbfun::read_userinvite(&conn, rsvp.invite.as_str()) {
+          Ok(None) => {
+            return Err(Box::new(simple_error::SimpleError::new(
+              "user invite not found",
+            )))
+          }
+          Ok(wat) => {
+            println!("user invite: {:?}", wat);
+            ()
+          }
+          Err(e) => return Err(e),
+        }
+
         // user does not exist, which is what we want for a new user.
         // get email from 'data'.
-
-        dbfun::remove_userinvite(&conn, rsvp.invite)?;
+        dbfun::remove_userinvite(&conn, &rsvp.invite.as_str())?;
 
         // let registration_key = Uuid::new_v4().to_string();
         let salt = util::salt_string();

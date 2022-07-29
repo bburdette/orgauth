@@ -456,7 +456,7 @@ pub fn add_userinvite(
 }
 
 // email change request.
-pub fn remove_userinvite(conn: &Connection, token: String) -> Result<(), Box<dyn Error>> {
+pub fn remove_userinvite(conn: &Connection, token: &str) -> Result<(), Box<dyn Error>> {
   conn.execute(
     "delete from orgauth_user_invite
      where token = ?1",
@@ -464,6 +464,23 @@ pub fn remove_userinvite(conn: &Connection, token: String) -> Result<(), Box<dyn
   )?;
 
   Ok(())
+}
+
+// email change request.
+pub fn read_userinvite(
+  conn: &Connection,
+  token: &str,
+) -> Result<Option<(Option<String>, i64)>, Box<dyn Error>> {
+  match conn.query_row(
+    "select email, tokendate from orgauth_user_invite
+     where token = ?1",
+    params![token],
+    |row| Ok((row.get(0)?, row.get(1)?)),
+  ) {
+    Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+    Ok(v) => Ok(Some(v)),
+    Err(e) => Err(Box::new(e)),
+  }
 }
 
 pub fn change_password(
