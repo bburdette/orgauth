@@ -393,7 +393,7 @@ pub fn admin_interface(
       what: "user invite".to_string(),
       data: Some(serde_json::to_value(UserInvite {
         email: None,
-        url: format!("{}/user/invite/{}", config.mainsite, invite_key.to_string()),
+        url: format!("{}/invite/{}", config.mainsite, invite_key.to_string()),
       })?),
     })
   } else {

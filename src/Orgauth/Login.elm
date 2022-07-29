@@ -216,7 +216,7 @@ loginView style model =
             { onChange = IdUpdate
             , text = model.userId
             , placeholder = Nothing
-            , label = Input.labelLeft [] <| text "User id:"
+            , label = Input.labelLeft [] <| text "user id:"
             }
         , Input.currentPassword [ width fill ]
             { onChange = PasswordUpdate
