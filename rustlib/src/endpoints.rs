@@ -9,7 +9,7 @@ use crate::util::is_token_expired;
 use actix_session::Session;
 use actix_web::{HttpRequest, HttpResponse};
 use crypto_hash::{hex_digest, Algorithm};
-use log::{error, info};
+use log::{error, info, warn};
 use rusqlite::{params, Connection};
 use std::error::Error;
 use std::str::FromStr;
@@ -121,66 +121,67 @@ pub fn user_interface(
   } else if msg.what == "rsvp" {
     let msgdata = Option::ok_or(msg.data, "malformed registration data")?;
     let rsvp: RSVP = serde_json::from_value(msgdata)?;
-    // do the registration thing.
-    // user already exists?
-    match dbfun::read_user_by_name(&conn, rsvp.uid.as_str()) {
-      Ok(userdata) => {
-        match userdata.registration_key {
-          Some(_reg_key) => {
-            // register here?
-            // mu.registration_key = None;
-            // match dbfun::update_user(&conn, &mu) {
-            Ok(WhatMessage {
-              what: "unregistered user".to_string(),
-              data: Option::None,
-            })
-          }
-          None => {
-            // password matches?
-            if userdata.active {
-              if hex_digest(
-                Algorithm::SHA256,
-                (rsvp.pwd.clone() + userdata.salt.as_str())
-                  .into_bytes()
-                  .as_slice(),
-              ) != userdata.hashwd
-              {
-                // don't distinguish between bad user id and bad pwd!
-                Ok(WhatMessage {
-                  what: "invalid user or pwd".to_string(),
-                  data: Option::None,
-                })
-              } else {
-                // delete the invite?
+    // invite exists?
+    info!("rsvp: {:?}", rsvp);
+    match dbfun::read_userinvite(&conn, rsvp.invite.as_str()) {
+      Ok(None) => {
+        return Err(Box::new(simple_error::SimpleError::new(
+          "user invite not found",
+        )))
+      }
+      Err(e) => return Err(e),
+      Ok(Some(_)) => (),
+    }
 
-                log_user_in(session, callbacks, &conn, userdata.id)
-              }
-            } else {
-              Ok(WhatMessage {
-                what: "account inactive".to_string(),
-                data: None,
-              })
+    // uid already exists?
+    match dbfun::read_user_by_name(&conn, rsvp.uid.as_str()) {
+      Ok(mut userdata) => {
+        // password matches?
+        if hex_digest(
+          Algorithm::SHA256,
+          (rsvp.pwd.clone() + userdata.salt.as_str())
+            .into_bytes()
+            .as_slice(),
+        ) != userdata.hashwd
+        {
+          // don't distinguish between bad user id and bad pwd
+          // maybe would ok for one-time use invites.
+          Ok(WhatMessage {
+            what: "invalid user or pwd".to_string(),
+            data: Option::None,
+          })
+        } else if !userdata.active {
+          Ok(WhatMessage {
+            what: "account deactivated".to_string(),
+            data: None,
+          })
+        } else {
+          match userdata.registration_key {
+            Some(_reg_key) => {
+              // Ok suppose someone tried to register normally, but the email didn't arrive or they lost it.
+              // now they get a invite link from the admin.  Ok to create an account with the same uid/pwd as registration?
+              // or, is the registration link in the email the only way to log in?
+              // also, allow writing over the pwd from the registration?
+
+              // ok this counts as registration.
+              userdata.registration_key = None;
+              dbfun::update_user(&conn, &userdata)?;
             }
+            None => (),
           }
+          // password matches, account active, already registered
+
+          // delete the invite.
+          dbfun::remove_userinvite(&conn, &rsvp.invite.as_str())?;
+          // log in.
+          log_user_in(session, callbacks, &conn, userdata.id)
         }
       }
       Err(_) => {
-        // invite exists?
-        info!("rsvp: {:?}", rsvp);
-        match dbfun::read_userinvite(&conn, rsvp.invite.as_str()) {
-          Ok(None) => {
-            return Err(Box::new(simple_error::SimpleError::new(
-              "user invite not found",
-            )))
-          }
-          Err(e) => return Err(e),
-          Ok(Some(_)) => (),
-        }
+        // user does not exist, which is what we want for a new user.
 
         // delete the invite.
         dbfun::remove_userinvite(&conn, &rsvp.invite.as_str())?;
-        // user does not exist, which is what we want for a new user.
-        // get email from 'data'.
 
         // let registration_key = Uuid::new_v4().to_string();
         let salt = util::salt_string();
@@ -216,7 +217,8 @@ pub fn user_interface(
         ) {
           Ok(_) => (),
           Err(e) => {
-            info!(
+            // warn if error sending email; but keep on with new user login.
+            warn!(
               "error sending rsvp notification for user: {}, {}",
               rd.uid, e
             )
@@ -273,7 +275,7 @@ pub fn user_interface(
           }
         } else {
           Ok(WhatMessage {
-            what: "account inactive".to_string(),
+            what: "account deactivated".to_string(),
             data: None,
           })
         }
