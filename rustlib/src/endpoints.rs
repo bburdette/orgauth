@@ -124,13 +124,45 @@ pub fn user_interface(
     // do the registration thing.
     // user already exists?
     match dbfun::read_user_by_name(&conn, rsvp.uid.as_str()) {
-      Ok(_) => {
-        // TODO if password matches, log em in
-        // err - user exists.
-        Ok(WhatMessage {
-          what: "user exists".to_string(),
-          data: Option::None,
-        })
+      Ok(userdata) => {
+        match userdata.registration_key {
+          Some(_reg_key) => {
+            // register here?
+            // mu.registration_key = None;
+            // match dbfun::update_user(&conn, &mu) {
+            Ok(WhatMessage {
+              what: "unregistered user".to_string(),
+              data: Option::None,
+            })
+          }
+          None => {
+            // password matches?
+            if userdata.active {
+              if hex_digest(
+                Algorithm::SHA256,
+                (rsvp.pwd.clone() + userdata.salt.as_str())
+                  .into_bytes()
+                  .as_slice(),
+              ) != userdata.hashwd
+              {
+                // don't distinguish between bad user id and bad pwd!
+                Ok(WhatMessage {
+                  what: "invalid user or pwd".to_string(),
+                  data: Option::None,
+                })
+              } else {
+                // delete the invite?
+
+                log_user_in(session, callbacks, &conn, userdata.id)
+              }
+            } else {
+              Ok(WhatMessage {
+                what: "account inactive".to_string(),
+                data: None,
+              })
+            }
+          }
+        }
       }
       Err(_) => {
         // invite exists?
