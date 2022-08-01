@@ -158,12 +158,9 @@ pub fn user_interface(
         } else {
           match userdata.registration_key {
             Some(_reg_key) => {
-              // Ok suppose someone tried to register normally, but the email didn't arrive or they lost it.
-              // now they get a invite link from the admin.  Ok to create an account with the same uid/pwd as registration?
-              // or, is the registration link in the email the only way to log in?
-              // also, allow writing over the pwd from the registration?
-
-              // ok this counts as registration.
+              // If an 'unregistered user' - someone who tried the registration through email - gets hold of an
+              // invite link, then they can complete registration with that.
+              // They do have to use the same password they used from their registration though.
               userdata.registration_key = None;
               dbfun::update_user(&conn, &userdata)?;
             }
