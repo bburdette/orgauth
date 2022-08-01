@@ -12,6 +12,7 @@ pub struct Config {
   pub login_token_expiration_ms: i64,
   pub email_token_expiration_ms: i64,
   pub reset_token_expiration_ms: i64,
+  pub invite_token_expiration_ms: i64,
   pub open_registration: bool,
 }
 
@@ -48,11 +49,26 @@ pub struct User {
   pub active: bool,
 }
 
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct UserInvite {
+  pub email: Option<String>,
+  pub token: String,
+  pub url: String,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct RegistrationData {
   pub uid: String,
   pub pwd: String,
   pub email: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct RSVP {
+  pub uid: String,
+  pub pwd: String,
+  pub email: String,
+  pub invite: String,
 }
 
 #[derive(Deserialize, Debug)]

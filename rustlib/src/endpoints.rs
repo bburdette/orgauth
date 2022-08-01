@@ -1,6 +1,6 @@
 use crate::data::{
   ChangeEmail, ChangePassword, Config, Login, LoginData, RegistrationData, ResetPassword,
-  SetPassword, User, WhatMessage,
+  SetPassword, User, UserInvite, WhatMessage, RSVP,
 };
 use crate::dbfun;
 use crate::email;
@@ -9,7 +9,7 @@ use crate::util::is_token_expired;
 use actix_session::Session;
 use actix_web::{HttpRequest, HttpResponse};
 use crypto_hash::{hex_digest, Algorithm};
-use log::{error, info};
+use log::{error, info, warn};
 use rusqlite::{params, Connection};
 use std::error::Error;
 use std::str::FromStr;
@@ -22,6 +22,27 @@ pub struct Callbacks {
   pub extra_login_data:
     Box<dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, Box<dyn Error>>>,
   pub on_delete_user: Box<dyn FnMut(&Connection, i64) -> Result<bool, Box<dyn Error>>>,
+}
+
+pub fn log_user_in(
+  session: &Session,
+  callbacks: &mut Callbacks,
+  conn: &Connection,
+  uid: i64,
+) -> Result<WhatMessage, Box<dyn Error>> {
+  let mut ld = dbfun::login_data(&conn, uid)?;
+  let data = (callbacks.extra_login_data)(&conn, ld.userid)?;
+  ld.data = data;
+  // new token here, and token date.
+  let token = Uuid::new_v4();
+  dbfun::add_token(&conn, uid, token)?;
+  session.set("token", token)?;
+  // dbfun::update_user(&conn, &userdata)?;
+
+  Ok(WhatMessage {
+    what: "logged in".to_string(),
+    data: Option::Some(serde_json::to_value(ld)?),
+  })
 }
 
 pub fn user_interface(
@@ -66,7 +87,7 @@ pub fn user_interface(
           ),
           salt,
           rd.email.clone(),
-          registration_key.clone().to_string(),
+          Some(registration_key.clone().to_string()),
         )?;
 
         (callbacks.on_new_user)(&conn, &rd, uid)?;
@@ -97,6 +118,131 @@ pub fn user_interface(
         })
       }
     }
+  } else if msg.what == "rsvp" {
+    let msgdata = Option::ok_or(msg.data, "malformed registration data")?;
+    let rsvp: RSVP = serde_json::from_value(msgdata)?;
+    // invite exists?
+    info!("rsvp: {:?}", rsvp);
+    match dbfun::read_userinvite(&conn, rsvp.invite.as_str()) {
+      Ok(None) => {
+        return Err(Box::new(simple_error::SimpleError::new(
+          "user invite not found",
+        )))
+      }
+      Err(e) => return Err(e),
+      Ok(Some(_)) => (),
+    }
+
+    // uid already exists?
+    match dbfun::read_user_by_name(&conn, rsvp.uid.as_str()) {
+      Ok(mut userdata) => {
+        // password matches?
+        if hex_digest(
+          Algorithm::SHA256,
+          (rsvp.pwd.clone() + userdata.salt.as_str())
+            .into_bytes()
+            .as_slice(),
+        ) != userdata.hashwd
+        {
+          // don't distinguish between bad user id and bad pwd
+          // maybe would ok for one-time use invites.
+          Ok(WhatMessage {
+            what: "invalid user or pwd".to_string(),
+            data: Option::None,
+          })
+        } else if !userdata.active {
+          Ok(WhatMessage {
+            what: "account deactivated".to_string(),
+            data: None,
+          })
+        } else {
+          match userdata.registration_key {
+            Some(_reg_key) => {
+              // If an 'unregistered user' - someone who tried the registration through email - gets hold of an
+              // invite link, then they can complete registration with that.
+              // They do have to use the same password they used from their registration though.
+              userdata.registration_key = None;
+              dbfun::update_user(&conn, &userdata)?;
+            }
+            None => (),
+          }
+          // password matches, account active, already registered
+
+          // delete the invite.
+          dbfun::remove_userinvite(&conn, &rsvp.invite.as_str())?;
+          // log in.
+          log_user_in(session, callbacks, &conn, userdata.id)
+        }
+      }
+      Err(_) => {
+        // user does not exist, which is what we want for a new user.
+
+        // delete the invite.
+        dbfun::remove_userinvite(&conn, &rsvp.invite.as_str())?;
+
+        // let registration_key = Uuid::new_v4().to_string();
+        let salt = util::salt_string();
+
+        // write a user record.
+        let uid = dbfun::new_user(
+          &conn,
+          rsvp.uid.clone(),
+          hex_digest(
+            Algorithm::SHA256,
+            (rsvp.pwd.clone() + salt.as_str()).into_bytes().as_slice(),
+          ),
+          salt,
+          rsvp.email.clone(),
+          Option::None,
+        )?;
+
+        let rd = RegistrationData {
+          uid: rsvp.uid.clone(),
+          pwd: rsvp.pwd.clone(),
+          email: rsvp.email.clone(),
+        };
+
+        (callbacks.on_new_user)(&conn, &rd, uid)?;
+
+        // notify the admin.
+        match email::send_rsvp_notification(
+          config.appname.as_str(),
+          config.emaildomain.as_str(),
+          config.admin_email.as_str(),
+          rsvp.email.as_str(),
+          rsvp.uid.as_str(),
+        ) {
+          Ok(_) => (),
+          Err(e) => {
+            // warn if error sending email; but keep on with new user login.
+            warn!(
+              "error sending rsvp notification for user: {}, {}",
+              rd.uid, e
+            )
+          }
+        }
+
+        // respond with login.
+        log_user_in(session, callbacks, &conn, uid)
+      }
+    }
+  } else if msg.what == "GetInvite" {
+    let msgdata = Option::ok_or(msg.data, "malformed registration data")?;
+    let token: String = serde_json::from_value(msgdata)?;
+    match dbfun::read_userinvite(&conn, token.as_str()) {
+      Ok(None) => Err(Box::new(simple_error::SimpleError::new(
+        "user invite not found",
+      ))),
+      Err(e) => Err(e),
+      Ok(Some((email, _tokendate))) => Ok(WhatMessage {
+        what: "user invite".to_string(),
+        data: Some(serde_json::to_value(UserInvite {
+          email: email,
+          token: token.clone(),
+          url: format!("{}/invite/{}", config.mainsite, token),
+        })?),
+      }),
+    }
   } else if msg.what == "login" {
     let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
     let login: Login = serde_json::from_value(msgdata.clone())?;
@@ -122,24 +268,11 @@ pub fn user_interface(
               data: Option::None,
             })
           } else {
-            let mut ld = dbfun::login_data(&conn, userdata.id)?;
-            let data = (callbacks.extra_login_data)(&conn, ld.userid)?;
-            ld.data = data;
-            // new token here, and token date.
-            let token = Uuid::new_v4();
-            dbfun::add_token(&conn, userdata.id, token)?;
-            session.set("token", token)?;
-            dbfun::update_user(&conn, &userdata)?;
-            info!("logged in, user: {:?}", userdata.name);
-
-            Ok(WhatMessage {
-              what: "logged in".to_string(),
-              data: Option::Some(serde_json::to_value(ld)?),
-            })
+            log_user_in(session, callbacks, &conn, userdata.id)
           }
         } else {
           Ok(WhatMessage {
-            what: "account inactive".to_string(),
+            what: "account deactivated".to_string(),
             data: None,
           })
         }
@@ -332,14 +465,13 @@ pub fn admin_interface_check(
 
 pub fn admin_interface(
   conn: &Connection,
-  _config: &Config,
+  config: &Config,
   _user: &User,
   callbacks: &mut Callbacks,
   msg: &WhatMessage,
 ) -> Result<WhatMessage, Box<dyn Error>> {
   if msg.what == "getusers" {
     let users = dbfun::read_users(&conn, &mut callbacks.extra_login_data)?;
-
     Ok(WhatMessage {
       what: "users".to_string(),
       data: Some(serde_json::to_value(users)?),
@@ -385,6 +517,18 @@ pub fn admin_interface(
         data: None,
       }),
     }
+  } else if msg.what == "getinvite" {
+    let invite_key = Uuid::new_v4();
+
+    dbfun::add_userinvite(&conn, invite_key.clone(), None)?;
+    Ok(WhatMessage {
+      what: "user invite".to_string(),
+      data: Some(serde_json::to_value(UserInvite {
+        email: None,
+        token: invite_key.to_string(),
+        url: format!("{}/invite/{}", config.mainsite, invite_key.to_string()),
+      })?),
+    })
   } else {
     Err(Box::new(simple_error::SimpleError::new(format!(
       "invalid 'what' code:'{}'",

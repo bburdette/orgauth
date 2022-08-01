@@ -9,6 +9,7 @@ type SendMsg
     = GetUsers
     | DeleteUser Int
     | UpdateUser Data.LoginData
+    | GetInvite
 
 
 type ServerResponse
@@ -16,6 +17,7 @@ type ServerResponse
     | UserDeleted Int
     | UserUpdated Data.LoginData
     | ServerError String
+    | UserInvite Data.UserInvite
     | NotLoggedIn
 
 
@@ -33,6 +35,9 @@ showServerResponse sr =
 
         UserUpdated _ ->
             "UserUpdated"
+
+        UserInvite _ ->
+            "UserInvite"
 
         ServerError _ ->
             "ServerError"
@@ -58,6 +63,11 @@ encodeSendMsg sm =
                 , ( "data", Data.encodeLoginData ld )
                 ]
 
+        GetInvite ->
+            JE.object
+                [ ( "what", JE.string "getinvite" )
+                ]
+
 
 serverResponseDecoder : JD.Decoder ServerResponse
 serverResponseDecoder =
@@ -74,6 +84,9 @@ serverResponseDecoder =
 
                     "user updated" ->
                         JD.map UserUpdated (JD.at [ "data" ] Data.decodeLoginData)
+
+                    "user invite" ->
+                        JD.map UserInvite (JD.at [ "data" ] Data.decodeUserInvite)
 
                     "not logged in" ->
                         JD.succeed NotLoggedIn

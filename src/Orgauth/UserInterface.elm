@@ -8,6 +8,8 @@ import Orgauth.Data as Data
 type SendMsg
     = Register Data.Registration
     | Login Data.Login
+    | GetInvite String
+    | RSVP Data.RSVP
     | ResetPassword Data.ResetPassword
     | SetPassword Data.SetPassword
     | Logout
@@ -27,6 +29,7 @@ type ServerResponse
     | ChangedEmail
     | ResetPasswordAck
     | SetPasswordAck
+    | Invite Data.UserInvite
     | ServerError String
 
 
@@ -66,6 +69,9 @@ showServerResponse sr =
         ChangedEmail ->
             "ChangedEmail"
 
+        Invite _ ->
+            "Invite"
+
         ServerError _ ->
             "ServerError"
 
@@ -83,6 +89,12 @@ encodeSendMsg sm =
             JE.object
                 [ ( "what", JE.string "login" )
                 , ( "data", Data.encodeLogin login )
+                ]
+
+        RSVP rsvp ->
+            JE.object
+                [ ( "what", JE.string "rsvp" )
+                , ( "data", Data.encodeRSVP rsvp )
                 ]
 
         Logout ->
@@ -112,6 +124,12 @@ encodeSendMsg sm =
             JE.object
                 [ ( "what", JE.string "ChangeEmail" )
                 , ( "data", Data.encodeChangeEmail chpwd )
+                ]
+
+        GetInvite token ->
+            JE.object
+                [ ( "what", JE.string "GetInvite" )
+                , ( "data", JE.string token )
                 ]
 
 
@@ -161,6 +179,9 @@ serverResponseDecoder =
 
                     "changed email" ->
                         JD.succeed ChangedEmail
+
+                    "user invite" ->
+                        JD.map Invite (JD.at [ "data" ] Data.decodeUserInvite)
 
                     "server error" ->
                         JD.map ServerError (JD.at [ "data" ] JD.string)

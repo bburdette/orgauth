@@ -19,6 +19,14 @@ type alias Registration =
     }
 
 
+type alias RSVP =
+    { uid : String
+    , pwd : String
+    , email : String
+    , invite : String
+    }
+
+
 type alias Login =
     { uid : String
     , pwd : String
@@ -59,6 +67,13 @@ type alias LoginData =
     }
 
 
+type alias UserInvite =
+    { url : String
+    , token : String
+    , email : Maybe String
+    }
+
+
 type alias AdminSettings =
     { openRegistration : Bool
     }
@@ -84,6 +99,16 @@ encodeLogin l =
     JE.object
         [ ( "uid", JE.string l.uid )
         , ( "pwd", JE.string l.pwd )
+        ]
+
+
+encodeRSVP : RSVP -> JE.Value
+encodeRSVP l =
+    JE.object
+        [ ( "uid", JE.string l.uid )
+        , ( "pwd", JE.string l.pwd )
+        , ( "email", JE.string l.email )
+        , ( "invite", JE.string l.invite )
         ]
 
 
@@ -146,6 +171,14 @@ decodeAdminSettings : JD.Decoder AdminSettings
 decodeAdminSettings =
     JD.succeed AdminSettings
         |> andMap (JD.field "open_registration" JD.bool)
+
+
+decodeUserInvite : JD.Decoder UserInvite
+decodeUserInvite =
+    JD.succeed UserInvite
+        |> andMap (JD.field "url" JD.string)
+        |> andMap (JD.field "token" JD.string)
+        |> andMap (JD.maybe (JD.field "email" JD.string))
 
 
 

@@ -28,7 +28,16 @@ pub fn udpate1(dbfile: &Path) -> Result<(), Box<dyn Error>> {
 
   // add token table.  multiple tokens per user to support multiple browsers and/or devices.
   m.create_table("orgauth_token", |t| {
-    t.add_column("user", types::foreign("orgauth_user", "id").nullable(false));
+    t.add_column(
+      "user",
+      types::foreign(
+        "orgauth_user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_column("token", types::text().nullable(false));
     t.add_column("tokendate", types::integer().nullable(false));
     t.add_index(
@@ -39,7 +48,16 @@ pub fn udpate1(dbfile: &Path) -> Result<(), Box<dyn Error>> {
 
   // add newemail table.  each request for a new email creates an entry.
   m.create_table("orgauth_newemail", |t| {
-    t.add_column("user", types::foreign("orgauth_user", "id").nullable(false));
+    t.add_column(
+      "user",
+      types::foreign(
+        "orgauth_user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_column("email", types::text().nullable(false));
     t.add_column("token", types::text().nullable(false));
     t.add_column("tokendate", types::integer().nullable(false));
@@ -51,7 +69,16 @@ pub fn udpate1(dbfile: &Path) -> Result<(), Box<dyn Error>> {
 
   // add newpassword table.  each request for a new password creates an entry.
   m.create_table("orgauth_newpassword", |t| {
-    t.add_column("user", types::foreign("orgauth_user", "id").nullable(false));
+    t.add_column(
+      "user",
+      types::foreign(
+        "orgauth_user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      )
+      .nullable(false),
+    );
     t.add_column("token", types::text().nullable(false));
     t.add_column("tokendate", types::integer().nullable(false));
     t.add_index(
@@ -126,6 +153,27 @@ pub fn udpate2(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   )?;
 
   conn.execute("drop table orgauth_user_temp", params![])?;
+
+  Ok(())
+}
+
+pub fn udpate3(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+  // db connection without foreign key checking.
+  let conn = Connection::open(dbfile)?;
+  let mut m = Migration::new();
+
+  // add newemail table.  each request for a new email creates an entry.
+  m.create_table("orgauth_user_invite", |t| {
+    t.add_column("email", types::text().nullable(true));
+    t.add_column("token", types::text().nullable(false));
+    t.add_column("tokendate", types::integer().nullable(false));
+    t.add_index(
+      "orgauth_user_invite_unq",
+      types::index(vec!["user", "token"]).unique(true),
+    );
+  });
+
+  conn.execute_batch(m.make::<Sqlite>().as_str())?;
 
   Ok(())
 }
