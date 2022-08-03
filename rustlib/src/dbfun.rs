@@ -1,6 +1,7 @@
-use crate::data::Config;
 use crate::data::{ChangeEmail, ChangePassword, LoginData, User};
-use crate::util::{is_token_expired, now};
+use crate::data::{Config, RegistrationData};
+use crate::endpoints::Callbacks;
+use crate::util::{is_token_expired, now, salt_string};
 use crypto_hash::{hex_digest, Algorithm};
 use log::info;
 use rusqlite::{params, Connection};
@@ -28,11 +29,39 @@ pub fn connection_open(dbfile: &Path) -> Result<Connection, Box<dyn Error>> {
 
 pub fn new_user(
   conn: &Connection,
+  rd: &RegistrationData,
+  registration_key: Option<String>,
+  callbacks: &mut Callbacks,
+) -> Result<i64, Box<dyn Error>> {
+  let now = now()?;
+  let salt = salt_string();
+  let hashwd = hex_digest(
+    Algorithm::SHA256,
+    (rd.pwd.clone() + salt.as_str()).into_bytes().as_slice(),
+  );
+
+  // make a user record.
+  conn.execute(
+    "insert into orgauth_user (name, hashwd, salt, email, admin, active, registration_key, createdate)
+      values (?1, ?2, ?3, ?4, 0, 1, ?5, ?6)",
+    params![rd.uid, hashwd, salt, rd.email, registration_key, now],
+  )?;
+
+  let uid = conn.last_insert_rowid();
+
+  (callbacks.on_new_user)(&conn, &rd, uid)?;
+
+  Ok(uid)
+}
+
+/*pub fn new_user(
+  conn: &Connection,
   name: String,
   hashwd: String,
   salt: String,
   email: String,
   registration_key: Option<String>,
+  callbacks: Callbacks,
 ) -> Result<i64, Box<dyn Error>> {
   let now = now()?;
 
@@ -46,7 +75,7 @@ pub fn new_user(
   let uid = conn.last_insert_rowid();
 
   Ok(uid)
-}
+}*/
 
 pub fn user_id(conn: &Connection, name: &str) -> Result<i64, Box<dyn Error>> {
   let id: i64 = conn.query_row(

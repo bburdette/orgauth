@@ -75,22 +75,12 @@ pub fn user_interface(
         // user does not exist, which is what we want for a new user.
         // get email from 'data'.
         let registration_key = Uuid::new_v4().to_string();
-        let salt = util::salt_string();
-
-        // write a user record.
         let uid = dbfun::new_user(
           &conn,
-          rd.uid.clone(),
-          hex_digest(
-            Algorithm::SHA256,
-            (rd.pwd.clone() + salt.as_str()).into_bytes().as_slice(),
-          ),
-          salt,
-          rd.email.clone(),
+          &rd,
           Some(registration_key.clone().to_string()),
+          callbacks,
         )?;
-
-        (callbacks.on_new_user)(&conn, &rd, uid)?;
 
         // send a registration email.
         email::send_registration(
@@ -180,29 +170,14 @@ pub fn user_interface(
         // delete the invite.
         dbfun::remove_userinvite(&conn, &rsvp.invite.as_str())?;
 
-        // let registration_key = Uuid::new_v4().to_string();
-        let salt = util::salt_string();
-
-        // write a user record.
-        let uid = dbfun::new_user(
-          &conn,
-          rsvp.uid.clone(),
-          hex_digest(
-            Algorithm::SHA256,
-            (rsvp.pwd.clone() + salt.as_str()).into_bytes().as_slice(),
-          ),
-          salt,
-          rsvp.email.clone(),
-          Option::None,
-        )?;
-
         let rd = RegistrationData {
           uid: rsvp.uid.clone(),
           pwd: rsvp.pwd.clone(),
           email: rsvp.email.clone(),
         };
 
-        (callbacks.on_new_user)(&conn, &rd, uid)?;
+        // write a user record.
+        let uid = dbfun::new_user(&conn, &rd, Option::None, callbacks)?;
 
         // notify the admin.
         match email::send_rsvp_notification(
