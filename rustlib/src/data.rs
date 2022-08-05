@@ -56,6 +56,12 @@ pub struct UserInvite {
   pub url: String,
 }
 
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct GetInvite {
+  pub email: Option<String>,
+  pub data: Option<String>,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct RegistrationData {
   pub uid: String,

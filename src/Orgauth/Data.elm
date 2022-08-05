@@ -27,6 +27,12 @@ type alias RSVP =
     }
 
 
+type alias GetInvite =
+    { email : Maybe String
+    , data : Maybe String
+    }
+
+
 type alias Login =
     { uid : String
     , pwd : String
@@ -171,6 +177,15 @@ decodeAdminSettings : JD.Decoder AdminSettings
 decodeAdminSettings =
     JD.succeed AdminSettings
         |> andMap (JD.field "open_registration" JD.bool)
+
+
+encodeGetInvite : GetInvite -> JE.Value
+encodeGetInvite gi =
+    JE.object <|
+        List.filterMap identity
+            [ gi.email |> Maybe.map (\e -> ( "email", JE.string e ))
+            , gi.data |> Maybe.map (\e -> ( "data", JE.string e ))
+            ]
 
 
 decodeUserInvite : JD.Decoder UserInvite

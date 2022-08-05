@@ -474,12 +474,14 @@ pub fn add_userinvite(
   conn: &Connection,
   token: Uuid,
   email: Option<String>,
+  creator: i64,
+  data: Option<String>,
 ) -> Result<(), Box<dyn Error>> {
   let now = now()?;
   conn.execute(
-    "insert into orgauth_user_invite (email, token, tokendate)
-     values (?1, ?2, ?3)",
-    params![email, token.to_string(), now],
+    "insert into orgauth_user_invite (email, token, tokendate, creator, data)
+     values (?1, ?2, ?3, ?4, ?5)",
+    params![email, token.to_string(), now, creator, data],
   )?;
 
   Ok(())
