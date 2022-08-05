@@ -75,11 +75,11 @@ pub fn user_interface(
         // user does not exist, which is what we want for a new user.
         // get email from 'data'.
         let registration_key = Uuid::new_v4().to_string();
-        let uid = dbfun::new_user(
+        let _uid = dbfun::new_user(
           &conn,
           &rd,
           Some(registration_key.clone().to_string()),
-          callbacks,
+          &mut callbacks.on_new_user,
         )?;
 
         // send a registration email.
@@ -177,7 +177,7 @@ pub fn user_interface(
         };
 
         // write a user record.
-        let uid = dbfun::new_user(&conn, &rd, Option::None, callbacks)?;
+        let uid = dbfun::new_user(&conn, &rd, Option::None, &mut callbacks.on_new_user)?;
 
         // notify the admin.
         match email::send_rsvp_notification(

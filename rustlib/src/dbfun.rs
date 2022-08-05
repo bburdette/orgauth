@@ -1,6 +1,5 @@
 use crate::data::{ChangeEmail, ChangePassword, LoginData, User};
 use crate::data::{Config, RegistrationData};
-use crate::endpoints::Callbacks;
 use crate::util::{is_token_expired, now, salt_string};
 use crypto_hash::{hex_digest, Algorithm};
 use log::info;
@@ -31,7 +30,9 @@ pub fn new_user(
   conn: &Connection,
   rd: &RegistrationData,
   registration_key: Option<String>,
-  callbacks: &mut Callbacks,
+  on_new_user: &mut Box<
+    dyn FnMut(&Connection, &RegistrationData, i64) -> Result<(), Box<dyn Error>>,
+  >,
 ) -> Result<i64, Box<dyn Error>> {
   let now = now()?;
   let salt = salt_string();
@@ -49,7 +50,7 @@ pub fn new_user(
 
   let uid = conn.last_insert_rowid();
 
-  (callbacks.on_new_user)(&conn, &rd, uid)?;
+  (on_new_user)(&conn, &rd, uid)?;
 
   Ok(uid)
 }
