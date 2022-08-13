@@ -203,7 +203,7 @@ pub fn user_interface(
         log_user_in(session, callbacks, &conn, uid)
       }
     }
-  } else if msg.what == "GetInvite" {
+  } else if msg.what == "ReadInvite" {
     let msgdata = Option::ok_or(msg.data, "malformed registration data")?;
     let token: String = serde_json::from_value(msgdata)?;
     match dbfun::read_userinvite(&conn, token.as_str()) {
