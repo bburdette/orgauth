@@ -1,4 +1,4 @@
-use crate::data::{ChangeEmail, ChangePassword, LoginData, User};
+use crate::data::{ChangeEmail, ChangePassword, LoginData, User, UserInvite};
 use crate::data::{Config, RegistrationData};
 use crate::util::{is_token_expired, now, salt_string};
 use crypto_hash::{hex_digest, Algorithm};
@@ -501,13 +501,23 @@ pub fn remove_userinvite(conn: &Connection, token: &str) -> Result<(), Box<dyn E
 // email change request.
 pub fn read_userinvite(
   conn: &Connection,
+  mainsite: &str,
   token: &str,
-) -> Result<Option<(Option<String>, i64)>, Box<dyn Error>> {
+) -> Result<Option<UserInvite>, Box<dyn Error>> {
   match conn.query_row(
-    "select email, tokendate from orgauth_user_invite
+    "select email, tokendate, data, creator from orgauth_user_invite
      where token = ?1",
     params![token],
-    |row| Ok((row.get(0)?, row.get(1)?)),
+    |row| {
+      Ok(UserInvite {
+        email: row.get(0)?,
+        token: token.to_string(),
+        // tokendate: row.get(1)?,
+        url: format!("{}/invite/{}", mainsite, token),
+        data: row.get(2)?,
+        creator: row.get(3)?,
+      })
+    },
   ) {
     Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
     Ok(v) => Ok(Some(v)),

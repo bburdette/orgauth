@@ -115,7 +115,7 @@ pub fn user_interface(
     let rsvp: RSVP = serde_json::from_value(msgdata)?;
     // invite exists?
     info!("rsvp: {:?}", rsvp);
-    match dbfun::read_userinvite(&conn, rsvp.invite.as_str()) {
+    match dbfun::read_userinvite(&conn, config.mainsite.as_str(), rsvp.invite.as_str()) {
       Ok(None) => {
         return Err(Box::new(simple_error::SimpleError::new(
           "user invite not found",
@@ -176,6 +176,7 @@ pub fn user_interface(
           uid: rsvp.uid.clone(),
           pwd: rsvp.pwd.clone(),
           email: rsvp.email.clone(),
+          data: None,
         };
 
         // write a user record.
@@ -206,18 +207,14 @@ pub fn user_interface(
   } else if msg.what == "ReadInvite" {
     let msgdata = Option::ok_or(msg.data, "malformed registration data")?;
     let token: String = serde_json::from_value(msgdata)?;
-    match dbfun::read_userinvite(&conn, token.as_str()) {
+    match dbfun::read_userinvite(&conn, config.mainsite.as_str(), token.as_str()) {
       Ok(None) => Err(Box::new(simple_error::SimpleError::new(
         "user invite not found",
       ))),
       Err(e) => Err(e),
-      Ok(Some((email, _tokendate))) => Ok(WhatMessage {
+      Ok(Some(invite)) => Ok(WhatMessage {
         what: "user invite".to_string(),
-        data: Some(serde_json::to_value(UserInvite {
-          email: email,
-          token: token.clone(),
-          url: format!("{}/invite/{}", config.mainsite, token),
-        })?),
+        data: Some(serde_json::to_value(invite)?),
       }),
     }
   } else if msg.what == "login" {
@@ -500,13 +497,21 @@ pub fn admin_interface(
         let gi: GetInvite = serde_json::from_value(v.clone())?;
         let invite_key = Uuid::new_v4();
 
-        dbfun::add_userinvite(&conn, invite_key.clone(), gi.email, user.id, gi.data)?;
+        dbfun::add_userinvite(
+          &conn,
+          invite_key.clone(),
+          gi.email,
+          user.id,
+          gi.data.clone(),
+        )?;
         Ok(WhatMessage {
           what: "user invite".to_string(),
           data: Some(serde_json::to_value(UserInvite {
             email: None,
             token: invite_key.to_string(),
             url: format!("{}/invite/{}", config.mainsite, invite_key.to_string()),
+            creator: user.id,
+            data: gi.data,
           })?),
         })
       }
