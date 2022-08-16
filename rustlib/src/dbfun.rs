@@ -30,8 +30,16 @@ pub fn new_user(
   conn: &Connection,
   rd: &RegistrationData,
   registration_key: Option<String>,
+  data: Option<String>,
+  creator: Option<i64>,
   on_new_user: &mut Box<
-    dyn FnMut(&Connection, &RegistrationData, i64) -> Result<(), Box<dyn Error>>,
+    dyn FnMut(
+      &Connection,
+      &RegistrationData,
+      Option<String>,
+      Option<i64>,
+      i64,
+    ) -> Result<(), Box<dyn Error>>,
   >,
 ) -> Result<i64, Box<dyn Error>> {
   let now = now()?;
@@ -50,7 +58,7 @@ pub fn new_user(
 
   let uid = conn.last_insert_rowid();
 
-  (on_new_user)(&conn, &rd, uid)?;
+  (on_new_user)(&conn, &rd, data, creator, uid)?;
 
   Ok(uid)
 }

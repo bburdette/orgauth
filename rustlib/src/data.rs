@@ -69,7 +69,6 @@ pub struct RegistrationData {
   pub uid: String,
   pub pwd: String,
   pub email: String,
-  pub data: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]

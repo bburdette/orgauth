@@ -17,13 +17,18 @@ use util::now;
 use uuid::Uuid;
 
 pub struct Callbacks {
-  pub on_new_user:
-    Box<dyn FnMut(&Connection, &RegistrationData, i64) -> Result<(), Box<dyn Error>>>,
+  pub on_new_user: Box<
+    dyn FnMut(
+      &Connection,
+      &RegistrationData,
+      Option<String>,
+      Option<i64>,
+      i64,
+    ) -> Result<(), Box<dyn Error>>,
+  >,
   pub extra_login_data:
     Box<dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, Box<dyn Error>>>,
   pub on_delete_user: Box<dyn FnMut(&Connection, i64) -> Result<bool, Box<dyn Error>>>,
-  // pub on_invite_user:
-  //   Box<dyn FnMut(&Connection, &Option<serde_json::Value>, i64) -> Result<(), Box<dyn Error>>>,
 }
 
 pub fn log_user_in(
@@ -81,6 +86,8 @@ pub fn user_interface(
           &conn,
           &rd,
           Some(registration_key.clone().to_string()),
+          None,
+          None,
           &mut callbacks.on_new_user,
         )?;
 
@@ -115,15 +122,16 @@ pub fn user_interface(
     let rsvp: RSVP = serde_json::from_value(msgdata)?;
     // invite exists?
     info!("rsvp: {:?}", rsvp);
-    match dbfun::read_userinvite(&conn, config.mainsite.as_str(), rsvp.invite.as_str()) {
+    let invite = match dbfun::read_userinvite(&conn, config.mainsite.as_str(), rsvp.invite.as_str())
+    {
       Ok(None) => {
         return Err(Box::new(simple_error::SimpleError::new(
           "user invite not found",
         )))
       }
       Err(e) => return Err(e),
-      Ok(Some(_)) => (),
-    }
+      Ok(Some(i)) => i,
+    };
 
     // uid already exists?
     match dbfun::read_user_by_name(&conn, rsvp.uid.as_str()) {
@@ -176,11 +184,17 @@ pub fn user_interface(
           uid: rsvp.uid.clone(),
           pwd: rsvp.pwd.clone(),
           email: rsvp.email.clone(),
-          data: None,
         };
 
         // write a user record.
-        let uid = dbfun::new_user(&conn, &rd, Option::None, &mut callbacks.on_new_user)?;
+        let uid = dbfun::new_user(
+          &conn,
+          &rd,
+          Option::None,
+          invite.data,
+          Some(invite.creator),
+          &mut callbacks.on_new_user,
+        )?;
 
         // notify the admin.
         match email::send_rsvp_notification(
