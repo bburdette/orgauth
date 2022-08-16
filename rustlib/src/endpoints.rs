@@ -1,6 +1,6 @@
 use crate::data::{
-  ChangeEmail, ChangePassword, Config, Login, LoginData, RegistrationData, ResetPassword,
-  SetPassword, User, UserInvite, WhatMessage, RSVP,
+  ChangeEmail, ChangePassword, Config, GetInvite, Login, LoginData, RegistrationData,
+  ResetPassword, SetPassword, User, UserInvite, WhatMessage, RSVP,
 };
 use crate::dbfun;
 use crate::email;
@@ -17,8 +17,15 @@ use util::now;
 use uuid::Uuid;
 
 pub struct Callbacks {
-  pub on_new_user:
-    Box<dyn FnMut(&Connection, &RegistrationData, i64) -> Result<(), Box<dyn Error>>>,
+  pub on_new_user: Box<
+    dyn FnMut(
+      &Connection,
+      &RegistrationData,
+      Option<String>,
+      Option<i64>,
+      i64,
+    ) -> Result<(), Box<dyn Error>>,
+  >,
   pub extra_login_data:
     Box<dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, Box<dyn Error>>>,
   pub on_delete_user: Box<dyn FnMut(&Connection, i64) -> Result<bool, Box<dyn Error>>>,
@@ -37,7 +44,6 @@ pub fn log_user_in(
   let token = Uuid::new_v4();
   dbfun::add_token(&conn, uid, token)?;
   session.set("token", token)?;
-  // dbfun::update_user(&conn, &userdata)?;
 
   Ok(WhatMessage {
     what: "logged in".to_string(),
@@ -79,6 +85,8 @@ pub fn user_interface(
           &conn,
           &rd,
           Some(registration_key.clone().to_string()),
+          None,
+          None,
           &mut callbacks.on_new_user,
         )?;
 
@@ -113,15 +121,16 @@ pub fn user_interface(
     let rsvp: RSVP = serde_json::from_value(msgdata)?;
     // invite exists?
     info!("rsvp: {:?}", rsvp);
-    match dbfun::read_userinvite(&conn, rsvp.invite.as_str()) {
+    let invite = match dbfun::read_userinvite(&conn, config.mainsite.as_str(), rsvp.invite.as_str())
+    {
       Ok(None) => {
         return Err(Box::new(simple_error::SimpleError::new(
           "user invite not found",
         )))
       }
       Err(e) => return Err(e),
-      Ok(Some(_)) => (),
-    }
+      Ok(Some(i)) => i,
+    };
 
     // uid already exists?
     match dbfun::read_user_by_name(&conn, rsvp.uid.as_str()) {
@@ -177,7 +186,14 @@ pub fn user_interface(
         };
 
         // write a user record.
-        let uid = dbfun::new_user(&conn, &rd, Option::None, &mut callbacks.on_new_user)?;
+        let uid = dbfun::new_user(
+          &conn,
+          &rd,
+          Option::None,
+          invite.data,
+          Some(invite.creator),
+          &mut callbacks.on_new_user,
+        )?;
 
         // notify the admin.
         match email::send_rsvp_notification(
@@ -201,21 +217,17 @@ pub fn user_interface(
         log_user_in(session, callbacks, &conn, uid)
       }
     }
-  } else if msg.what == "GetInvite" {
+  } else if msg.what == "ReadInvite" {
     let msgdata = Option::ok_or(msg.data, "malformed registration data")?;
     let token: String = serde_json::from_value(msgdata)?;
-    match dbfun::read_userinvite(&conn, token.as_str()) {
+    match dbfun::read_userinvite(&conn, config.mainsite.as_str(), token.as_str()) {
       Ok(None) => Err(Box::new(simple_error::SimpleError::new(
         "user invite not found",
       ))),
       Err(e) => Err(e),
-      Ok(Some((email, _tokendate))) => Ok(WhatMessage {
+      Ok(Some(invite)) => Ok(WhatMessage {
         what: "user invite".to_string(),
-        data: Some(serde_json::to_value(UserInvite {
-          email: email,
-          token: token.clone(),
-          url: format!("{}/invite/{}", config.mainsite, token),
-        })?),
+        data: Some(serde_json::to_value(invite)?),
       }),
     }
   } else if msg.what == "login" {
@@ -441,7 +453,7 @@ pub fn admin_interface_check(
 pub fn admin_interface(
   conn: &Connection,
   config: &Config,
-  _user: &User,
+  user: &User,
   callbacks: &mut Callbacks,
   msg: &WhatMessage,
 ) -> Result<WhatMessage, Box<dyn Error>> {
@@ -493,17 +505,34 @@ pub fn admin_interface(
       }),
     }
   } else if msg.what == "getinvite" {
-    let invite_key = Uuid::new_v4();
+    match &msg.data {
+      Some(v) => {
+        let gi: GetInvite = serde_json::from_value(v.clone())?;
+        let invite_key = Uuid::new_v4();
 
-    dbfun::add_userinvite(&conn, invite_key.clone(), None)?;
-    Ok(WhatMessage {
-      what: "user invite".to_string(),
-      data: Some(serde_json::to_value(UserInvite {
-        email: None,
-        token: invite_key.to_string(),
-        url: format!("{}/invite/{}", config.mainsite, invite_key.to_string()),
-      })?),
-    })
+        dbfun::add_userinvite(
+          &conn,
+          invite_key.clone(),
+          gi.email,
+          user.id,
+          gi.data.clone(),
+        )?;
+        Ok(WhatMessage {
+          what: "user invite".to_string(),
+          data: Some(serde_json::to_value(UserInvite {
+            email: None,
+            token: invite_key.to_string(),
+            url: format!("{}/invite/{}", config.mainsite, invite_key.to_string()),
+            creator: user.id,
+            data: gi.data,
+          })?),
+        })
+      }
+      None => Ok(WhatMessage {
+        what: "no data".to_string(),
+        data: None,
+      }),
+    }
   } else {
     Err(Box::new(simple_error::SimpleError::new(format!(
       "invalid 'what' code:'{}'",

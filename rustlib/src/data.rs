@@ -54,6 +54,14 @@ pub struct UserInvite {
   pub email: Option<String>,
   pub token: String,
   pub url: String,
+  pub data: Option<String>,
+  pub creator: i64,
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct GetInvite {
+  pub email: Option<String>,
+  pub data: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]

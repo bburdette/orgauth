@@ -9,7 +9,7 @@ type SendMsg
     = GetUsers
     | DeleteUser Int
     | UpdateUser Data.LoginData
-    | GetInvite
+    | GetInvite Data.GetInvite
 
 
 type ServerResponse
@@ -63,9 +63,10 @@ encodeSendMsg sm =
                 , ( "data", Data.encodeLoginData ld )
                 ]
 
-        GetInvite ->
+        GetInvite gi ->
             JE.object
                 [ ( "what", JE.string "getinvite" )
+                , ( "data", Data.encodeGetInvite gi )
                 ]
 
 

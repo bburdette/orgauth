@@ -8,7 +8,7 @@ import Orgauth.Data as Data
 type SendMsg
     = Register Data.Registration
     | Login Data.Login
-    | GetInvite String
+    | ReadInvite String
     | RSVP Data.RSVP
     | ResetPassword Data.ResetPassword
     | SetPassword Data.SetPassword
@@ -126,9 +126,9 @@ encodeSendMsg sm =
                 , ( "data", Data.encodeChangeEmail chpwd )
                 ]
 
-        GetInvite token ->
+        ReadInvite token ->
             JE.object
-                [ ( "what", JE.string "GetInvite" )
+                [ ( "what", JE.string "ReadInvite" )
                 , ( "data", JE.string token )
                 ]
 

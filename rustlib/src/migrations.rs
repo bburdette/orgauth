@@ -116,7 +116,7 @@ pub fn udpate2(dbfile: &Path) -> Result<(), Box<dyn Error>> {
 
   conn.execute_batch(m1.make::<Sqlite>().as_str())?;
 
-  // copy everything from zknotetemp.
+  // copy everything from temp.
   conn.execute(
     "insert into orgauth_user_temp (id, name, hashwd, salt, email, registration_key, createdate)
         select id, name, hashwd, salt, email, registration_key, createdate from orgauth_user",
@@ -162,11 +162,43 @@ pub fn udpate3(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   let conn = Connection::open(dbfile)?;
   let mut m = Migration::new();
 
+  m.create_table("orgauth_user_invite", |t| {
+    t.add_column("email", types::text().nullable(true));
+    t.add_column("token", types::text().nullable(false));
+    t.add_column("tokendate", types::integer().nullable(false));
+    t.add_index(
+      "orgauth_user_invite_unq",
+      types::index(vec!["user", "token"]).unique(true),
+    );
+  });
+
+  conn.execute_batch(m.make::<Sqlite>().as_str())?;
+
+  Ok(())
+}
+
+pub fn udpate4(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+  // db connection without foreign key checking.
+  let conn = Connection::open(dbfile)?;
+  let mut m = Migration::new();
+
+  // eaiser to drop the table.  data is lost though.
+  m.drop_table("orgauth_user_invite");
   // add newemail table.  each request for a new email creates an entry.
   m.create_table("orgauth_user_invite", |t| {
     t.add_column("email", types::text().nullable(true));
     t.add_column("token", types::text().nullable(false));
     t.add_column("tokendate", types::integer().nullable(false));
+    t.add_column(
+      "creator",
+      types::foreign(
+        "orgauth_user",
+        "id",
+        types::ReferentialAction::Restrict,
+        types::ReferentialAction::Restrict,
+      ),
+    );
+    t.add_column("data", types::text().nullable(true));
     t.add_index(
       "orgauth_user_invite_unq",
       types::index(vec!["user", "token"]).unique(true),

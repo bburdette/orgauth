@@ -1,4 +1,4 @@
-use crate::data::{ChangeEmail, ChangePassword, LoginData, User};
+use crate::data::{ChangeEmail, ChangePassword, LoginData, User, UserInvite};
 use crate::data::{Config, RegistrationData};
 use crate::util::{is_token_expired, now, salt_string};
 use crypto_hash::{hex_digest, Algorithm};
@@ -30,8 +30,16 @@ pub fn new_user(
   conn: &Connection,
   rd: &RegistrationData,
   registration_key: Option<String>,
+  data: Option<String>,
+  creator: Option<i64>,
   on_new_user: &mut Box<
-    dyn FnMut(&Connection, &RegistrationData, i64) -> Result<(), Box<dyn Error>>,
+    dyn FnMut(
+      &Connection,
+      &RegistrationData,
+      Option<String>,
+      Option<i64>,
+      i64,
+    ) -> Result<(), Box<dyn Error>>,
   >,
 ) -> Result<i64, Box<dyn Error>> {
   let now = now()?;
@@ -50,7 +58,7 @@ pub fn new_user(
 
   let uid = conn.last_insert_rowid();
 
-  (on_new_user)(&conn, &rd, uid)?;
+  (on_new_user)(&conn, &rd, data, creator, uid)?;
 
   Ok(uid)
 }
@@ -474,12 +482,14 @@ pub fn add_userinvite(
   conn: &Connection,
   token: Uuid,
   email: Option<String>,
+  creator: i64,
+  data: Option<String>,
 ) -> Result<(), Box<dyn Error>> {
   let now = now()?;
   conn.execute(
-    "insert into orgauth_user_invite (email, token, tokendate)
-     values (?1, ?2, ?3)",
-    params![email, token.to_string(), now],
+    "insert into orgauth_user_invite (email, token, tokendate, creator, data)
+     values (?1, ?2, ?3, ?4, ?5)",
+    params![email, token.to_string(), now, creator, data],
   )?;
 
   Ok(())
@@ -499,13 +509,23 @@ pub fn remove_userinvite(conn: &Connection, token: &str) -> Result<(), Box<dyn E
 // email change request.
 pub fn read_userinvite(
   conn: &Connection,
+  mainsite: &str,
   token: &str,
-) -> Result<Option<(Option<String>, i64)>, Box<dyn Error>> {
+) -> Result<Option<UserInvite>, Box<dyn Error>> {
   match conn.query_row(
-    "select email, tokendate from orgauth_user_invite
+    "select email, tokendate, data, creator from orgauth_user_invite
      where token = ?1",
     params![token],
-    |row| Ok((row.get(0)?, row.get(1)?)),
+    |row| {
+      Ok(UserInvite {
+        email: row.get(0)?,
+        token: token.to_string(),
+        // tokendate: row.get(1)?,
+        url: format!("{}/invite/{}", mainsite, token),
+        data: row.get(2)?,
+        creator: row.get(3)?,
+      })
+    },
   ) {
     Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
     Ok(v) => Ok(Some(v)),
