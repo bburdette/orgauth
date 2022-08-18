@@ -143,7 +143,7 @@ pub fn read_users(
 ) -> Result<Vec<LoginData>, Box<dyn Error>> {
   let mut pstmt = conn.prepare(
     // return zklinks that link to or from notes that link to 'public'.
-    "select id from user",
+    "select id from orgauth_user",
   )?;
 
   let r = Ok(
