@@ -7,7 +7,7 @@ import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
 import Element.Region
-import Orgauth.Data as Data
+import Orgauth.Data as Data exposing (UserId)
 import TangoColors as TC
 import Time exposing (Zone)
 import Util
@@ -27,7 +27,7 @@ type Msg
     | RevertClick
     | NameEdit String
     | EmailEdit String
-    | DeleteClick Int
+    | DeleteClick UserId
     | ActiveChecked Bool
     | AdminChecked Bool
     | SaveClick
@@ -36,7 +36,7 @@ type Msg
 
 type Command
     = Done
-    | Delete Int
+    | Delete UserId
     | Save Data.LoginData
     | None
 

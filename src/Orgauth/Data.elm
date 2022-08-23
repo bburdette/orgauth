@@ -12,6 +12,22 @@ import Util exposing (andMap)
 ----------------------------------------
 
 
+type UserId
+    = UserId Int
+
+
+makeUserId : Int -> UserId
+makeUserId i =
+    UserId i
+
+
+getUserIdVal : UserId -> Int
+getUserIdVal uid =
+    case uid of
+        UserId i ->
+            i
+
+
 type alias Registration =
     { uid : String
     , pwd : String
@@ -64,7 +80,7 @@ type alias ChangeEmail =
 
 
 type alias LoginData =
-    { userid : Int
+    { userid : UserId
     , name : String
     , email : String
     , admin : Bool
@@ -153,7 +169,7 @@ encodeChangeEmail l =
 decodeLoginData : JD.Decoder LoginData
 decodeLoginData =
     JD.succeed LoginData
-        |> andMap (JD.field "userid" JD.int)
+        |> andMap (JD.field "userid" JD.int |> JD.map makeUserId)
         |> andMap (JD.field "name" JD.string)
         |> andMap (JD.field "email" JD.string)
         |> andMap (JD.field "admin" JD.bool)
@@ -164,7 +180,7 @@ decodeLoginData =
 encodeLoginData : LoginData -> JE.Value
 encodeLoginData ld =
     JE.object
-        [ ( "userid", JE.int ld.userid )
+        [ ( "userid", JE.int <| getUserIdVal ld.userid )
         , ( "name", JE.string ld.name )
         , ( "email", JE.string ld.email )
         , ( "admin", JE.bool ld.admin )
@@ -202,7 +218,7 @@ decodeUserInvite =
 ------------------------------------------------
 
 
-toLd : { a | userid : Int, name : String, email : String, admin : Bool, active : Bool } -> LoginData
+toLd : { a | userid : UserId, name : String, email : String, admin : Bool, active : Bool } -> LoginData
 toLd ld =
     { userid = ld.userid
     , name = ld.name
