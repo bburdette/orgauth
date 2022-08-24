@@ -101,6 +101,12 @@ type alias AdminSettings =
     }
 
 
+type alias PwdReset =
+    { userid : UserId
+    , url : String
+    }
+
+
 
 ----------------------------------------
 -- Json encoders/decoders
@@ -210,6 +216,13 @@ decodeUserInvite =
         |> andMap (JD.field "url" JD.string)
         |> andMap (JD.field "token" JD.string)
         |> andMap (JD.maybe (JD.field "email" JD.string))
+
+
+decodePwdReset : JD.Decoder PwdReset
+decodePwdReset =
+    JD.succeed PwdReset
+        |> andMap (JD.field "userid" JD.int |> JD.map makeUserId)
+        |> andMap (JD.field "url" JD.string)
 
 
 

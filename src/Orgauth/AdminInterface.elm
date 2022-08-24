@@ -7,9 +7,10 @@ import Orgauth.Data as Data
 
 type SendMsg
     = GetUsers
-    | DeleteUser Int
+    | DeleteUser Data.UserId
     | UpdateUser Data.LoginData
     | GetInvite Data.GetInvite
+    | GetPwdReset Data.UserId
 
 
 type ServerResponse
@@ -18,6 +19,7 @@ type ServerResponse
     | UserUpdated Data.LoginData
     | ServerError String
     | UserInvite Data.UserInvite
+    | PwdReset Data.PwdReset
     | NotLoggedIn
 
 
@@ -39,6 +41,9 @@ showServerResponse sr =
         UserInvite _ ->
             "UserInvite"
 
+        PwdReset _ ->
+            "PwdReset"
+
         ServerError _ ->
             "ServerError"
 
@@ -54,7 +59,7 @@ encodeSendMsg sm =
         DeleteUser id ->
             JE.object
                 [ ( "what", JE.string "deleteuser" )
-                , ( "data", JE.int id )
+                , ( "data", JE.int <| Data.getUserIdVal id )
                 ]
 
         UpdateUser ld ->
@@ -67,6 +72,12 @@ encodeSendMsg sm =
             JE.object
                 [ ( "what", JE.string "getinvite" )
                 , ( "data", Data.encodeGetInvite gi )
+                ]
+
+        GetPwdReset id ->
+            JE.object
+                [ ( "what", JE.string "getpwdreset" )
+                , ( "data", JE.int <| Data.getUserIdVal id )
                 ]
 
 
@@ -88,6 +99,9 @@ serverResponseDecoder =
 
                     "user invite" ->
                         JD.map UserInvite (JD.at [ "data" ] Data.decodeUserInvite)
+
+                    "pwd reset" ->
+                        JD.map PwdReset (JD.at [ "data" ] Data.decodePwdReset)
 
                     "not logged in" ->
                         JD.succeed NotLoggedIn

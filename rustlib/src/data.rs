@@ -90,6 +90,12 @@ pub struct ResetPassword {
   pub uid: String,
 }
 
+#[derive(Serialize, Debug)]
+pub struct PwdReset {
+  pub userid: i64,
+  pub url: String,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct SetPassword {
   pub uid: String,

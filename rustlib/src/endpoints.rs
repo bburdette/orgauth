@@ -1,5 +1,5 @@
 use crate::data::{
-  ChangeEmail, ChangePassword, Config, GetInvite, Login, LoginData, RegistrationData,
+  ChangeEmail, ChangePassword, Config, GetInvite, Login, LoginData, PwdReset, RegistrationData,
   ResetPassword, SetPassword, User, UserInvite, WhatMessage, RSVP,
 };
 use crate::dbfun;
@@ -525,6 +525,43 @@ pub fn admin_interface(
             url: format!("{}/invite/{}", config.mainsite, invite_key.to_string()),
             creator: user.id,
             data: gi.data,
+          })?),
+        })
+      }
+      None => Ok(WhatMessage {
+        what: "no data".to_string(),
+        data: None,
+      }),
+    }
+  } else if msg.what == "getpwdreset" {
+    match &msg.data {
+      Some(v) => {
+        let uid: i64 = serde_json::from_value(v.clone())?;
+        let user = dbfun::read_user_by_id(&conn, uid)?;
+        let reset_key = Uuid::new_v4();
+        // make 'newpassword' record.
+        dbfun::add_newpassword(&conn, uid, reset_key.clone())?;
+
+        // send reset email.
+        // email::send_reset(
+        //   config.appname.as_str(),
+        //   config.emaildomain.as_str(),
+        //   config.mainsite.as_str(),
+        //   userdata.email.as_str(),
+        //   userdata.name.as_str(),
+        //   reset_key.to_string().as_str(),
+        // )?;
+
+        Ok(WhatMessage {
+          what: "pwd reset".to_string(),
+          data: Some(serde_json::to_value(PwdReset {
+            userid: uid,
+            url: format!(
+              "{}/invite/{}/{}",
+              config.mainsite,
+              user.name,
+              reset_key.to_string()
+            ),
           })?),
         })
       }

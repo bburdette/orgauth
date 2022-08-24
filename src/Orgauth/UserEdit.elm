@@ -28,6 +28,7 @@ type Msg
     | NameEdit String
     | EmailEdit String
     | DeleteClick UserId
+    | ResetPwdClick UserId
     | ActiveChecked Bool
     | AdminChecked Bool
     | SaveClick
@@ -37,6 +38,7 @@ type Msg
 type Command
     = Done
     | Delete UserId
+    | ResetPwd UserId
     | Save Data.LoginData
     | None
 
@@ -126,6 +128,13 @@ view buttonStyle model =
                 |> Maybe.map
                     (\u ->
                         EI.button (E.centerX :: buttonStyle)
+                            { onPress = Just <| ResetPwdClick u.userid, label = E.text "reset" }
+                    )
+                |> Maybe.withDefault E.none
+            , model.initialUser
+                |> Maybe.map
+                    (\u ->
+                        EI.button (E.centerX :: buttonStyle)
                             { onPress = Just <| DeleteClick u.userid, label = E.text "delete" }
                     )
                 |> Maybe.withDefault E.none
@@ -159,6 +168,9 @@ update msg model =
 
         DeleteClick id ->
             ( model, Delete id )
+
+        ResetPwdClick id ->
+            ( model, ResetPwd id )
 
         SaveClick ->
             model.initialUser
