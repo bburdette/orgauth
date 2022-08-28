@@ -338,7 +338,7 @@ pub fn user_interface(
         }
       }
     }
-  } else if msg.what == "ChangePassword" || msg.what == "ChangeEmail" {
+  } else if msg.what == "ChangePassword" || msg.what == "ChangeEmail" || msg.what == "GetInvite" {
     // are we logged in?
     match session.get::<Uuid>("token")? {
       None => Ok(WhatMessage {
@@ -404,6 +404,36 @@ pub fn user_interface_loggedin(
       what: "changed email".to_string(),
       data: None,
     })
+  } else if msg.what == "GetInvite" {
+    if config.non_admin_invite {
+      match &msg.data {
+        Some(v) => {
+          let gi: GetInvite = serde_json::from_value(v.clone())?;
+          let invite_key = Uuid::new_v4();
+          let conn = dbfun::connection_open(config.db.as_path())?;
+
+          dbfun::add_userinvite(&conn, invite_key.clone(), gi.email, uid, gi.data.clone())?;
+          Ok(WhatMessage {
+            what: "user invite".to_string(),
+            data: Some(serde_json::to_value(UserInvite {
+              email: None,
+              token: invite_key.to_string(),
+              url: format!("{}/invite/{}", config.mainsite, invite_key.to_string()),
+              creator: uid,
+              data: gi.data,
+            })?),
+          })
+        }
+        None => Ok(WhatMessage {
+          what: "no data".to_string(),
+          data: None,
+        }),
+      }
+    } else {
+      Err(Box::new(simple_error::SimpleError::new(format!(
+        "non-admin user invites are disabled!"
+      ))))
+    }
   } else {
     Err(Box::new(simple_error::SimpleError::new(format!(
       "invalid 'what' code:'{}'",

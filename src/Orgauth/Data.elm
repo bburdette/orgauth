@@ -98,6 +98,7 @@ type alias UserInvite =
 
 type alias AdminSettings =
     { openRegistration : Bool
+    , nonAdminInvite : Bool
     }
 
 
@@ -199,6 +200,7 @@ decodeAdminSettings : JD.Decoder AdminSettings
 decodeAdminSettings =
     JD.succeed AdminSettings
         |> andMap (JD.field "open_registration" JD.bool)
+        |> andMap (JD.field "non_admin_invite" JD.bool)
 
 
 encodeGetInvite : GetInvite -> JE.Value
