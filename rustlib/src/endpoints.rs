@@ -338,7 +338,7 @@ pub fn user_interface(
         }
       }
     }
-  } else if msg.what == "ChangePassword" || msg.what == "ChangeEmail" {
+  } else if msg.what == "ChangePassword" || msg.what == "ChangeEmail" || msg.what == "GetInvite" {
     // are we logged in?
     match session.get::<Uuid>("token")? {
       None => Ok(WhatMessage {
@@ -404,7 +404,7 @@ pub fn user_interface_loggedin(
       what: "changed email".to_string(),
       data: None,
     })
-  } else if msg.what == "getinvite" {
+  } else if msg.what == "GetInvite" {
     if config.non_admin_invite {
       match &msg.data {
         Some(v) => {
