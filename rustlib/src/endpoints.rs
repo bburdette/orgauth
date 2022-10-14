@@ -79,6 +79,21 @@ pub fn user_interface(
       }
       Err(_) => {
         // user does not exist, which is what we want for a new user.
+
+        // check for non-blank uid and password.
+        if rd.uid.trim() == "" {
+          return Ok(WhatMessage {
+            what: "user name should not be blank".to_string(),
+            data: Option::None,
+          });
+        }
+        if rd.pwd.trim() == "" {
+          return Ok(WhatMessage {
+            what: "password should not be blank".to_string(),
+            data: Option::None,
+          });
+        }
+
         // get email from 'data'.
         let registration_key = Uuid::new_v4().to_string();
         let _uid = dbfun::new_user(

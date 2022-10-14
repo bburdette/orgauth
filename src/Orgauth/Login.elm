@@ -1,19 +1,15 @@
-module Orgauth.Login exposing (Cmd(..), Mode(..), Model, Msg(..), initialModel, invalidUserOrPwd, loginView, makeUrlP, onWkKeyPress, registrationSent, registrationView, sentView, unregisteredUser, update, urlToState, userExists, view)
+module Orgauth.Login exposing (..)
 
 import Common exposing (buttonStyle)
 import Dict exposing (Dict)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
-import Element.Events exposing (onClick)
-import Element.Font as Font
 import Element.Input as Input
-import Html exposing (Html)
 import Orgauth.Data as Data
 import Random exposing (Seed)
-import TangoColors as Color
 import Toop
-import Util exposing (httpErrorString)
+import Util
 import WindowKeys as WK
 
 
@@ -145,7 +141,7 @@ registrationSent : Model -> Model
 registrationSent model =
     { model
         | responseMessage = "registration sent.  check your spam folder for email from " ++ model.appname ++ "!"
-        , sent = False
+        , sent = True -- was false??
     }
 
 
@@ -153,6 +149,22 @@ invalidUserOrPwd : Model -> Model
 invalidUserOrPwd model =
     { model
         | responseMessage = "can't login - invalid user or password."
+        , sent = False
+    }
+
+
+blankPassword : Model -> Model
+blankPassword model =
+    { model
+        | responseMessage = "password cannot be empty!"
+        , sent = False
+    }
+
+
+blankUserName : Model -> Model
+blankUserName model =
+    { model
+        | responseMessage = "user name cannot be empty!"
         , sent = False
     }
 
@@ -363,10 +375,10 @@ update msg model =
                     }
             in
             if String.toInt model.captcha == (Just <| Tuple.second model.captchaQ) then
-                ( { newmod | sent = True }, Register )
+                ( newmod, Register )
 
             else
-                ( newmod, None )
+                ( { newmod | responseMessage = "check your math!" }, None )
 
         LoginPressed ->
             ( { model | sent = True }, Login )
