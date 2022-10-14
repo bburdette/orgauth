@@ -27,6 +27,8 @@ type ServerResponse
     | LoggedOut
     | ChangedPassword
     | ChangedEmail
+    | BlankUserName
+    | BlankPassword
     | ResetPasswordAck
     | SetPasswordAck
     | Invite Data.UserInvite
@@ -68,6 +70,12 @@ showServerResponse sr =
 
         ChangedEmail ->
             "ChangedEmail"
+
+        BlankUserName ->
+            "BlankUserName"
+
+        BlankPassword ->
+            "BlankPassword"
 
         Invite _ ->
             "Invite"
@@ -179,6 +187,12 @@ serverResponseDecoder =
 
                     "changed email" ->
                         JD.succeed ChangedEmail
+
+                    "user name should not be blank" ->
+                        JD.succeed BlankUserName
+
+                    "password should not be blank" ->
+                        JD.succeed BlankPassword
 
                     "user invite" ->
                         JD.map Invite (JD.at [ "data" ] Data.decodeUserInvite)
