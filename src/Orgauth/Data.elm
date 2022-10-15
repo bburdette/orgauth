@@ -16,18 +16,6 @@ type UserId
     = UserId Int
 
 
-makeUserId : Int -> UserId
-makeUserId i =
-    UserId i
-
-
-getUserIdVal : UserId -> Int
-getUserIdVal uid =
-    case uid of
-        UserId i ->
-            i
-
-
 type alias Registration =
     { uid : String
     , pwd : String
@@ -112,6 +100,28 @@ type alias PwdReset =
 ----------------------------------------
 -- Json encoders/decoders
 ----------------------------------------
+
+
+makeUserId : Int -> UserId
+makeUserId i =
+    UserId i
+
+
+getUserIdVal : UserId -> Int
+getUserIdVal uid =
+    case uid of
+        UserId i ->
+            i
+
+
+encodeUserId : UserId -> JE.Value
+encodeUserId =
+    getUserIdVal >> JE.int
+
+
+decodeUserId : JD.Decoder UserId
+decodeUserId =
+    JD.int |> JD.map makeUserId
 
 
 encodeRegistration : Registration -> JE.Value
