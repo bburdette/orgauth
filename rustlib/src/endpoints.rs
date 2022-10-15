@@ -79,6 +79,21 @@ pub fn user_interface(
       }
       Err(_) => {
         // user does not exist, which is what we want for a new user.
+
+        // check for non-blank uid and password.
+        if rd.uid.trim() == "" {
+          return Ok(WhatMessage {
+            what: "user name should not be blank".to_string(),
+            data: Option::None,
+          });
+        }
+        if rd.pwd.trim() == "" {
+          return Ok(WhatMessage {
+            what: "password should not be blank".to_string(),
+            data: Option::None,
+          });
+        }
+
         // get email from 'data'.
         let registration_key = Uuid::new_v4().to_string();
         let _uid = dbfun::new_user(
@@ -176,8 +191,19 @@ pub fn user_interface(
       Err(_) => {
         // user does not exist, which is what we want for a new user.
 
-        // delete the invite.
-        dbfun::remove_userinvite(&conn, &rsvp.invite.as_str())?;
+        // check for non-blank uid and password.
+        if rsvp.uid.trim() == "" {
+          return Ok(WhatMessage {
+            what: "user name should not be blank".to_string(),
+            data: Option::None,
+          });
+        }
+        if rsvp.pwd.trim() == "" {
+          return Ok(WhatMessage {
+            what: "password should not be blank".to_string(),
+            data: Option::None,
+          });
+        }
 
         let rd = RegistrationData {
           uid: rsvp.uid.clone(),
@@ -194,6 +220,9 @@ pub fn user_interface(
           Some(invite.creator),
           &mut callbacks.on_new_user,
         )?;
+
+        // delete the invite.
+        dbfun::remove_userinvite(&conn, &rsvp.invite.as_str())?;
 
         // notify the admin.
         match email::send_rsvp_notification(

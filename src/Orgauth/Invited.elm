@@ -1,4 +1,4 @@
-module Orgauth.Invited exposing (Cmd(..), Model, Msg(..), StylePalette, initialModel, invalidUserOrPwd, onWkKeyPress, registrationSent, registrationView, sentView, unregisteredUser, update, userExists, view)
+module Orgauth.Invited exposing (..)
 
 import Common exposing (buttonStyle)
 import Dict exposing (Dict)
@@ -89,6 +89,22 @@ invalidUserOrPwd : Model -> Model
 invalidUserOrPwd model =
     { model
         | responseMessage = "can't login - invalid user or password."
+        , sent = False
+    }
+
+
+blankPassword : Model -> Model
+blankPassword model =
+    { model
+        | responseMessage = "password cannot be empty!"
+        , sent = False
+    }
+
+
+blankUserName : Model -> Model
+blankUserName model =
+    { model
+        | responseMessage = "user name cannot be empty!"
         , sent = False
     }
 
