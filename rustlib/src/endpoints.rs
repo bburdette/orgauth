@@ -616,7 +616,7 @@ pub fn admin_interface(
           data: Some(serde_json::to_value(PwdReset {
             userid: uid,
             url: format!(
-              "{}/invite/{}/{}",
+              "{}/reset/{}/{}",
               config.mainsite,
               user.name,
               reset_key.to_string()
