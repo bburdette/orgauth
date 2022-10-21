@@ -209,3 +209,12 @@ pub fn udpate4(dbfile: &Path) -> Result<(), Box<dyn Error>> {
 
   Ok(())
 }
+
+pub fn udpate5(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+  // db connection without foreign key checking.
+  let conn = Connection::open(dbfile)?;
+
+  conn.execute("update orgauth_user set name = lower(name)", params![])?;
+
+  Ok(())
+}
