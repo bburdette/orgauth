@@ -53,7 +53,7 @@ pub fn new_user(
   conn.execute(
     "insert into orgauth_user (name, hashwd, salt, email, admin, active, registration_key, createdate)
       values (?1, ?2, ?3, ?4, 0, 1, ?5, ?6)",
-    params![rd.uid, hashwd, salt, rd.email, registration_key, now],
+    params![rd.uid.to_lowercase(), hashwd, salt, rd.email, registration_key, now],
   )?;
 
   let uid = conn.last_insert_rowid();
@@ -90,7 +90,7 @@ pub fn user_id(conn: &Connection, name: &str) -> Result<i64, Box<dyn Error>> {
   let id: i64 = conn.query_row(
     "select id from orgauth_user
       where orgauth_user.name = ?1",
-    params![name],
+    params![name.to_lowercase()],
     |row| Ok(row.get(0)?),
   )?;
   Ok(id)
@@ -128,7 +128,7 @@ pub fn login_data_cb(
 
 pub fn update_login_data(conn: &Connection, ld: &LoginData) -> Result<(), Box<dyn Error>> {
   let mut user = read_user_by_id(&conn, ld.userid)?;
-  user.name = ld.name.clone();
+  user.name = ld.name.to_lowercase();
   user.email = ld.email.clone();
   user.admin = ld.admin;
   user.active = ld.active;
@@ -165,11 +165,11 @@ pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, Box<dyn 
   let user = conn.query_row(
     "select id, hashwd, salt, email, registration_key, admin, active
       from orgauth_user where name = ?1",
-    params![name],
+    params![name.to_lowercase()],
     |row| {
       Ok(User {
         id: row.get(0)?,
-        name: name.to_string(),
+        name: name.to_lowercase(),
         hashwd: row.get(1)?,
         salt: row.get(2)?,
         email: row.get(3)?,
@@ -384,7 +384,7 @@ pub fn update_user(conn: &Connection, user: &User) -> Result<(), Box<dyn Error>>
     "update orgauth_user set name = ?1, hashwd = ?2, salt = ?3, email = ?4, registration_key = ?5, admin = ?6, active = ?7
            where id = ?8",
     params![
-      user.name,
+      user.name.to_lowercase(),
       user.hashwd,
       user.salt,
       user.email,
@@ -560,7 +560,7 @@ pub fn change_password(
         );
         userdata.hashwd = newhash;
         update_user(&conn, &userdata)?;
-        info!("changed password for {}", userdata.name);
+        info!("changed password for {}", userdata.name.to_lowercase());
 
         Ok(())
       }
@@ -591,7 +591,7 @@ pub fn change_email(
         let token = Uuid::new_v4();
         add_newemail(&conn, uid, token, cp.email)?;
 
-        Ok((userdata.name, token))
+        Ok((userdata.name.to_lowercase(), token))
       }
     }
   }
