@@ -7,7 +7,7 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Input as Input
 import Orgauth.Data as Data
-import Random exposing (Seed)
+import Random exposing (Seed, int, step)
 import Toop
 import Util
 import WindowKeys as WK
@@ -60,11 +60,26 @@ type Cmd
     | None
 
 
+captchaQ : Seed -> ( Seed, String, Int )
+captchaQ seed =
+    let
+        ( a, seed1 ) =
+            step (int 0 100) seed
+
+        ( b, seed2 ) =
+            step (int 0 100) seed1
+    in
+    ( seed2
+    , "Whats " ++ String.fromInt a ++ " + " ++ String.fromInt b ++ "?"
+    , a + b
+    )
+
+
 initialModel : Maybe { uid : String, pwd : String } -> Data.AdminSettings -> String -> Seed -> Model
 initialModel mblogin adminSettings appname seed =
     let
         ( newseed, cq, cans ) =
-            Util.captchaQ seed
+            captchaQ seed
 
         ( uid, pwd ) =
             case mblogin of
@@ -366,7 +381,7 @@ update msg model =
         RegisterPressed ->
             let
                 ( newseed, cq, cans ) =
-                    Util.captchaQ model.seed
+                    captchaQ model.seed
 
                 newmod =
                     { model
