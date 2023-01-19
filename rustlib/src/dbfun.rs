@@ -369,7 +369,9 @@ pub fn purge_user_invites(
 pub fn purge_tokens(config: &Config) -> Result<(), Box<dyn Error>> {
   let conn = connection_open(config.db.as_path())?;
 
-  purge_login_tokens(&conn, config.login_token_expiration_ms)?;
+  if let Some(expms) = config.login_token_expiration_ms {
+    purge_login_tokens(&conn, expms)?;
+  }
 
   purge_email_tokens(&conn, config.email_token_expiration_ms)?;
 
