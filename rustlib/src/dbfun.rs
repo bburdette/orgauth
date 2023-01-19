@@ -1,6 +1,7 @@
 use crate::data::{ChangeEmail, ChangePassword, LoginData, User, UserInvite};
 use crate::data::{Config, RegistrationData};
 use crate::util::{is_token_expired, now, salt_string};
+use actix_session::Session;
 use crypto_hash::{hex_digest, Algorithm};
 use log::info;
 use rusqlite::{params, Connection};
@@ -207,7 +208,9 @@ pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, Box<dyn Error
 
 pub fn read_user_by_token(
   conn: &Connection,
+  session: &Session,
   token: Uuid,
+  regen_login_tokens: bool,
   token_expiration_ms: Option<i64>,
 ) -> Result<User, Box<dyn Error>> {
   let (user, tokendate) = conn.query_row(
@@ -234,16 +237,28 @@ pub fn read_user_by_token(
   if !user.active {
     bail!("account is inactive")
   } else {
-    match token_expiration_ms {
+    let user = match token_expiration_ms {
       Some(texp) => {
         if is_token_expired(texp, tokendate) {
           bail!("login expired")
         } else {
-          Ok(user)
+          user
         }
       }
-      None => Ok(user),
+      None => user,
+    };
+    if regen_login_tokens {
+      // add new login token, and remove old, every time
+      conn.execute(
+        "delete from orgauth_token where token = ?1",
+        params![token.to_string()],
+      )?;
+      let new_token = Uuid::new_v4();
+      add_token(&conn, user.id, new_token)?;
+      session.set("token", token)?;
     }
+
+    Ok(user)
   }
 }
 
