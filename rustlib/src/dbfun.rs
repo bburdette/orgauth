@@ -258,11 +258,6 @@ pub fn read_user_with_token_regen(
   regen_login_tokens: bool,
   token_expiration_ms: Option<i64>,
 ) -> Result<User, Box<dyn Error>> {
-  let token = match session.get("token")? {
-    Some(t) => t,
-    None => bail!("no session token!"),
-  };
-
   let user = read_user_by_token(&conn, token, token_expiration_ms)?;
 
   if regen_login_tokens {
@@ -273,7 +268,7 @@ pub fn read_user_with_token_regen(
       "delete from orgauth_token where token = ?1",
       params![token.to_string()],
     )?;
-    session.set("token", token)?;
+    session.set("token", new_token)?;
   }
   Ok(user)
 }
