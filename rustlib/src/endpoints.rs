@@ -376,13 +376,7 @@ pub fn user_interface(
       }),
       Some(token) => {
         let conn = dbfun::connection_open(config.db.as_path())?;
-        match dbfun::read_user_by_token(
-          &conn,
-          &session,
-          token,
-          config.regen_login_tokens,
-          config.login_token_expiration_ms,
-        ) {
+        match dbfun::read_user_by_token(&conn, token, config.login_token_expiration_ms) {
           Err(e) => {
             info!("read_user_by_token error: {:?}", e);
 
@@ -490,13 +484,7 @@ pub fn admin_interface_check(
     }),
     Some(token) => {
       let conn = dbfun::connection_open(config.db.as_path())?;
-      match dbfun::read_user_by_token(
-        &conn,
-        &session,
-        token,
-        config.regen_login_tokens,
-        config.login_token_expiration_ms,
-      ) {
+      match dbfun::read_user_by_token(&conn, token, config.login_token_expiration_ms) {
         Err(e) => {
           info!("read_user_by_token error: {:?}", e);
 

@@ -208,9 +208,7 @@ pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, Box<dyn Error
 
 pub fn read_user_by_token(
   conn: &Connection,
-  session: &Session,
   token: Uuid,
-  regen_login_tokens: bool,
   token_expiration_ms: Option<i64>,
 ) -> Result<User, Box<dyn Error>> {
   let (user, tokendate) = conn.query_row(
@@ -247,19 +245,37 @@ pub fn read_user_by_token(
       }
       None => user,
     };
-    if regen_login_tokens {
-      // add new login token, and remove old, every time
-      conn.execute(
-        "delete from orgauth_token where token = ?1",
-        params![token.to_string()],
-      )?;
-      let new_token = Uuid::new_v4();
-      add_token(&conn, user.id, new_token)?;
-      session.set("token", token)?;
-    }
 
     Ok(user)
   }
+}
+
+// Use this one when loading a page; not for api calls.
+pub fn read_user_with_token_regen(
+  conn: &Connection,
+  session: &Session,
+  token: Uuid,
+  regen_login_tokens: bool,
+  token_expiration_ms: Option<i64>,
+) -> Result<User, Box<dyn Error>> {
+  let token = match session.get("token")? {
+    Some(t) => t,
+    None => bail!("no session token!"),
+  };
+
+  let user = read_user_by_token(&conn, token, token_expiration_ms)?;
+
+  if regen_login_tokens {
+    // add new login token, and remove old
+    let new_token = Uuid::new_v4();
+    add_token(&conn, user.id, new_token)?;
+    conn.execute(
+      "delete from orgauth_token where token = ?1",
+      params![token.to_string()],
+    )?;
+    session.set("token", token)?;
+  }
+  Ok(user)
 }
 
 pub fn add_token(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dyn Error>> {
