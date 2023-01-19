@@ -20,7 +20,6 @@ type alias Model =
 
 type Msg
     = DoneClick
-    | NewClick
     | InviteClick
     | EditPress Data.LoginData
     | Noop
@@ -28,7 +27,6 @@ type Msg
 
 type Command
     = Done
-    | NewUser
     | InviteUser
     | EditUser Data.LoginData
     | None
@@ -69,8 +67,6 @@ view buttonStyle model =
             [ EI.button (E.centerX :: buttonStyle)
                 { onPress = Just InviteClick, label = E.text "invite" }
             , EI.button (E.centerX :: buttonStyle)
-                { onPress = Just NewClick, label = E.text "new" }
-            , EI.button (E.centerX :: buttonStyle)
                 { onPress = Just DoneClick, label = E.text "done" }
             ]
         ]
@@ -84,9 +80,6 @@ update msg model =
 
         EditPress ld ->
             ( model, EditUser ld )
-
-        NewClick ->
-            ( model, NewUser )
 
         InviteClick ->
             ( model, InviteUser )
