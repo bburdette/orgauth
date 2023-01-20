@@ -64,29 +64,6 @@ pub fn new_user(
   Ok(uid)
 }
 
-/*pub fn new_user(
-  conn: &Connection,
-  name: String,
-  hashwd: String,
-  salt: String,
-  email: String,
-  registration_key: Option<String>,
-  callbacks: Callbacks,
-) -> Result<i64, Box<dyn Error>> {
-  let now = now()?;
-
-  // make a user record.
-  conn.execute(
-    "insert into orgauth_user (name, hashwd, salt, email, admin, active, registration_key, createdate)
-      values (?1, ?2, ?3, ?4, 0, 1, ?5, ?6)",
-    params![name, hashwd, salt, email, registration_key, now],
-  )?;
-
-  let uid = conn.last_insert_rowid();
-
-  Ok(uid)
-}*/
-
 pub fn user_id(conn: &Connection, name: &str) -> Result<i64, Box<dyn Error>> {
   let id: i64 = conn.query_row(
     "select id from orgauth_user
