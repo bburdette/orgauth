@@ -212,7 +212,8 @@ pub fn read_user_by_token(
   token: Uuid,
   token_expiration_ms: Option<i64>,
 ) -> Result<User, Box<dyn Error>> {
-  purge_expiredate_tokens(&conn)?;
+  // remove any tokens that have been marked for removal
+  purge_regendate_tokens(&conn)?;
 
   let (user, tokendate) = conn.query_row(
     "select id, name, hashwd, salt, email, registration_key, admin, active, orgauth_token.tokendate
@@ -273,7 +274,7 @@ pub fn read_user_with_token_regen(
     let new_exp = now()? + 10 * 60 * 1000;
     println!("setting exp: {:?}, {:?}", new_exp, token.to_string());
     conn.execute(
-      "update orgauth_token set expiredate = ?1 where token = ?2",
+      "update orgauth_token set regendate = ?1 where token = ?2",
       params![new_exp, token.to_string()],
     )?;
     println!("set exp: {:?}, {:?}", new_exp, token.to_string());
@@ -293,12 +294,12 @@ pub fn add_token(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dy
   Ok(())
 }
 
-pub fn purge_expiredate_tokens(conn: &Connection) -> Result<(), Box<dyn Error>> {
+pub fn purge_regendate_tokens(conn: &Connection) -> Result<(), Box<dyn Error>> {
   let now = now()?;
 
   let meh = conn.execute(
     "delete from orgauth_token
-        where expiredate < ?1",
+        where regendate < ?1",
     params![now],
   )?;
 

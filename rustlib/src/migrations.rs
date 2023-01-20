@@ -227,7 +227,7 @@ pub fn udpate6(dbfile: &Path) -> Result<(), Box<dyn Error>> {
 
   // add token table.  multiple tokens per user to support multiple browsers and/or devices.
   m.change_table("orgauth_token", |t| {
-    t.add_column("expiredate", types::integer().nullable(true));
+    t.add_column("regendate", types::integer().nullable(true));
   });
 
   conn.execute_batch(m.make::<Sqlite>().as_str())?;
