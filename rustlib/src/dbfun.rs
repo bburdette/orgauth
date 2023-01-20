@@ -206,15 +206,13 @@ pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, Box<dyn Error
   Ok(user)
 }
 
-// TODO break into valid-token and read-user parts.
+// Use this variant for api calls; doesn't refresh the token
+// in regen mode.
 pub fn read_user_by_token(
   conn: &Connection,
   token: Uuid,
   token_expiration_ms: Option<i64>,
 ) -> Result<User, Box<dyn Error>> {
-  // remove any tokens that have been marked for removal
-  purge_regendate_tokens(&conn)?;
-
   let (user, tokendate) = conn.query_row(
     "select id, name, hashwd, salt, email, registration_key, admin, active, orgauth_token.tokendate
       from orgauth_user, orgauth_token where orgauth_user.id = orgauth_token.user and orgauth_token.token = ?1",
@@ -254,7 +252,8 @@ pub fn read_user_by_token(
   }
 }
 
-// Use this one when loading a page; not for api calls.
+// Use this one when loading a page, when the token will be saved to the browser.
+// Not for api calls, where a new token would not be set.
 pub fn read_user_with_token_regen(
   conn: &Connection,
   session: &Session,
@@ -262,6 +261,9 @@ pub fn read_user_with_token_regen(
   regen_login_tokens: bool,
   token_expiration_ms: Option<i64>,
 ) -> Result<User, Box<dyn Error>> {
+  // remove any tokens that have been marked for removal
+  purge_regendate_tokens(&conn)?;
+
   let user = read_user_by_token(&conn, token, token_expiration_ms)?;
 
   if regen_login_tokens {
