@@ -268,16 +268,13 @@ pub fn read_user_with_token_regen(
     // add new login token, and flag old for removal.
     let new_token = Uuid::new_v4();
     add_token(&conn, user.id, new_token)?;
-    println!("added token:: {:?}, {:?}", user.id, new_token.to_string());
-    // set old token to expire in 10 minutes, to allow time for in-flight
+    // set old token to expire in 1 minute, to allow time for in-flight
     // requests to complete.
-    let new_exp = now()? + 10 * 60 * 1000;
-    println!("setting exp: {:?}, {:?}", new_exp, token.to_string());
+    let new_exp = now()? + 1 * 60 * 1000;
     conn.execute(
       "update orgauth_token set regendate = ?1 where token = ?2",
       params![new_exp, token.to_string()],
     )?;
-    println!("set exp: {:?}, {:?}", new_exp, token.to_string());
     session.set("token", new_token)?;
   }
   Ok(user)
@@ -297,13 +294,15 @@ pub fn add_token(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dy
 pub fn purge_regendate_tokens(conn: &Connection) -> Result<(), Box<dyn Error>> {
   let now = now()?;
 
-  let meh = conn.execute(
+  let delete_count = conn.execute(
     "delete from orgauth_token
         where regendate < ?1",
     params![now],
   )?;
 
-  println!("meh: {:?}", meh);
+  if delete_count > 0 {
+    info!("{:?} login tokens removed", delete_count);
+  }
 
   Ok(())
 }
