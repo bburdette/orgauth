@@ -206,11 +206,14 @@ pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, Box<dyn Error
   Ok(user)
 }
 
+// TODO break into valid-token and read-user parts.
 pub fn read_user_by_token(
   conn: &Connection,
   token: Uuid,
   token_expiration_ms: Option<i64>,
 ) -> Result<User, Box<dyn Error>> {
+  purge_expiredate_tokens(&conn)?;
+
   let (user, tokendate) = conn.query_row(
     "select id, name, hashwd, salt, email, registration_key, admin, active, orgauth_token.tokendate
       from orgauth_user, orgauth_token where orgauth_user.id = orgauth_token.user and orgauth_token.token = ?1",
@@ -261,13 +264,19 @@ pub fn read_user_with_token_regen(
   let user = read_user_by_token(&conn, token, token_expiration_ms)?;
 
   if regen_login_tokens {
-    // add new login token, and remove old
+    // add new login token, and flag old for removal.
     let new_token = Uuid::new_v4();
     add_token(&conn, user.id, new_token)?;
+    println!("added token:: {:?}, {:?}", user.id, new_token.to_string());
+    // set old token to expire in 10 minutes, to allow time for in-flight
+    // requests to complete.
+    let new_exp = now()? + 10 * 60 * 1000;
+    println!("setting exp: {:?}, {:?}", new_exp, token.to_string());
     conn.execute(
-      "delete from orgauth_token where token = ?1",
-      params![token.to_string()],
+      "update orgauth_token set expiredate = ?1 where token = ?2",
+      params![new_exp, token.to_string()],
     )?;
+    println!("set exp: {:?}, {:?}", new_exp, token.to_string());
     session.set("token", new_token)?;
   }
   Ok(user)
@@ -280,6 +289,20 @@ pub fn add_token(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dy
      values (?1, ?2, ?3)",
     params![user, token.to_string(), now],
   )?;
+
+  Ok(())
+}
+
+pub fn purge_expiredate_tokens(conn: &Connection) -> Result<(), Box<dyn Error>> {
+  let now = now()?;
+
+  let meh = conn.execute(
+    "delete from orgauth_token
+        where expiredate < ?1",
+    params![now],
+  )?;
+
+  println!("meh: {:?}", meh);
 
   Ok(())
 }
