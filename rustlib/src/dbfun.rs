@@ -1,6 +1,7 @@
 use crate::data::{ChangeEmail, ChangePassword, LoginData, User, UserInvite};
 use crate::data::{Config, RegistrationData};
 use crate::util::{is_token_expired, now, salt_string};
+use actix_session::Session;
 use crypto_hash::{hex_digest, Algorithm};
 use log::info;
 use rusqlite::{params, Connection};
@@ -62,29 +63,6 @@ pub fn new_user(
 
   Ok(uid)
 }
-
-/*pub fn new_user(
-  conn: &Connection,
-  name: String,
-  hashwd: String,
-  salt: String,
-  email: String,
-  registration_key: Option<String>,
-  callbacks: Callbacks,
-) -> Result<i64, Box<dyn Error>> {
-  let now = now()?;
-
-  // make a user record.
-  conn.execute(
-    "insert into orgauth_user (name, hashwd, salt, email, admin, active, registration_key, createdate)
-      values (?1, ?2, ?3, ?4, 0, 1, ?5, ?6)",
-    params![name, hashwd, salt, email, registration_key, now],
-  )?;
-
-  let uid = conn.last_insert_rowid();
-
-  Ok(uid)
-}*/
 
 pub fn user_id(conn: &Connection, name: &str) -> Result<i64, Box<dyn Error>> {
   let id: i64 = conn.query_row(
@@ -205,6 +183,8 @@ pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, Box<dyn Error
   Ok(user)
 }
 
+// Use this variant for api calls; doesn't refresh the token
+// in regen mode.
 pub fn read_user_by_token(
   conn: &Connection,
   token: Uuid,
@@ -234,17 +214,49 @@ pub fn read_user_by_token(
   if !user.active {
     bail!("account is inactive")
   } else {
-    match token_expiration_ms {
+    let user = match token_expiration_ms {
       Some(texp) => {
         if is_token_expired(texp, tokendate) {
           bail!("login expired")
         } else {
-          Ok(user)
+          user
         }
       }
-      None => Ok(user),
-    }
+      None => user,
+    };
+
+    Ok(user)
   }
+}
+
+// Use this one when loading a page, when the token will be saved to the browser.
+// Not for api calls, where a new token would not be set.
+pub fn read_user_with_token_regen(
+  conn: &Connection,
+  session: &Session,
+  token: Uuid,
+  regen_login_tokens: bool,
+  token_expiration_ms: Option<i64>,
+) -> Result<User, Box<dyn Error>> {
+  // remove any tokens that have been marked for removal
+  purge_regendate_tokens(&conn)?;
+
+  let user = read_user_by_token(&conn, token, token_expiration_ms)?;
+
+  if regen_login_tokens {
+    // add new login token, and flag old for removal.
+    let new_token = Uuid::new_v4();
+    add_token(&conn, user.id, new_token)?;
+    // set old token to expire in 1 minute, to allow time for in-flight
+    // requests to complete.
+    let new_exp = now()? + 1 * 60 * 1000;
+    conn.execute(
+      "update orgauth_token set regendate = ?1 where token = ?2",
+      params![new_exp, token.to_string()],
+    )?;
+    session.set("token", new_token)?;
+  }
+  Ok(user)
 }
 
 pub fn add_token(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dyn Error>> {
@@ -254,6 +266,22 @@ pub fn add_token(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dy
      values (?1, ?2, ?3)",
     params![user, token.to_string(), now],
   )?;
+
+  Ok(())
+}
+
+pub fn purge_regendate_tokens(conn: &Connection) -> Result<(), Box<dyn Error>> {
+  let now = now()?;
+
+  let delete_count = conn.execute(
+    "delete from orgauth_token
+        where regendate < ?1",
+    params![now],
+  )?;
+
+  if delete_count > 0 {
+    info!("{:?} login tokens removed", delete_count);
+  }
 
   Ok(())
 }
@@ -369,7 +397,9 @@ pub fn purge_user_invites(
 pub fn purge_tokens(config: &Config) -> Result<(), Box<dyn Error>> {
   let conn = connection_open(config.db.as_path())?;
 
-  purge_login_tokens(&conn, config.login_token_expiration_ms)?;
+  if let Some(expms) = config.login_token_expiration_ms {
+    purge_login_tokens(&conn, expms)?;
+  }
 
   purge_email_tokens(&conn, config.email_token_expiration_ms)?;
 
