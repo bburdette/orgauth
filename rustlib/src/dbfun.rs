@@ -563,6 +563,7 @@ pub fn read_userinvite(
   }
 }
 
+// change password, checking old password first.
 pub fn change_password(
   conn: &Connection,
   uid: i64,
@@ -579,7 +580,7 @@ pub fn change_password(
           .as_slice(),
       ) != userdata.hashwd
       {
-        // bad password, can't change.
+        // old password is bad, can't change.
         bail!("invalid password!")
       } else {
         let newhash = hex_digest(
@@ -594,6 +595,35 @@ pub fn change_password(
 
         Ok(())
       }
+    }
+  }
+}
+
+// change password without requiring old password.
+// for unregistered users.
+pub fn override_password(
+  conn: &Connection,
+  uid: i64,
+  newpwd: String,
+) -> Result<(), Box<dyn Error>> {
+  let mut userdata = read_user_by_id(&conn, uid)?;
+  // just being cautious in limiting this to only unregistered.
+  match userdata.registration_key {
+    Some(ref _reg_key) => {
+      let newhash = hex_digest(
+        Algorithm::SHA256,
+        (newpwd.clone() + userdata.salt.as_str())
+          .into_bytes()
+          .as_slice(),
+      );
+      userdata.hashwd = newhash;
+      update_user(&conn, &userdata)?;
+      info!("changed password for {}", userdata.name.to_lowercase());
+
+      Ok(())
+    }
+    None => {
+      bail!("registered user; can't override password.")
     }
   }
 }

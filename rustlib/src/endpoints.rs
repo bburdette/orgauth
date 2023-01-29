@@ -70,12 +70,66 @@ pub fn user_interface(
     // do the registration thing.
     // user already exists?
     match dbfun::read_user_by_name(&conn, rd.uid.as_str()) {
-      Ok(_) => {
-        // err - user exists.
-        Ok(WhatMessage {
-          what: "user exists".to_string(),
-          data: Option::None,
-        })
+      Ok(mut user) => {
+        match user.registration_key {
+          Some(ref reg_key) => {
+            // user exists but has not yet registered.  allow update of user data.
+
+            if rd.pwd.trim() == "" {
+              return Ok(WhatMessage {
+                what: "password should not be blank".to_string(),
+                data: Option::None,
+              });
+            }
+
+            user.email = rd.email;
+
+            dbfun::update_user(&conn, &user)?;
+            if hex_digest(
+              Algorithm::SHA256,
+              (rd.pwd.clone() + user.salt.as_str())
+                .into_bytes()
+                .as_slice(),
+            ) != user.hashwd
+            {
+              // change password.
+              dbfun::override_password(&conn, user.id, rd.pwd)?;
+            }
+
+            // send a registration email.
+            email::send_registration(
+              config.appname.as_str(),
+              config.emaildomain.as_str(),
+              config.mainsite.as_str(),
+              user.email.as_str(),
+              rd.uid.as_str(),
+              reg_key.as_str(),
+            )?;
+
+            // notify the admin.
+            email::send_registration_notification(
+              config.appname.as_str(),
+              config.emaildomain.as_str(),
+              config.admin_email.as_str(),
+              user.email.as_str(),
+              rd.uid.as_str(),
+              reg_key.as_str(),
+            )?;
+
+            Ok(WhatMessage {
+              what: "registration email sent".to_string(),
+              data: Option::None,
+            })
+          }
+          None => {
+            // if user is already registered, can't register again.
+            // err - user exists.
+            Ok(WhatMessage {
+              what: "can't register; user already exists".to_string(),
+              data: Option::None,
+            })
+          }
+        }
       }
       Err(_) => {
         // user does not exist, which is what we want for a new user.
@@ -126,7 +180,7 @@ pub fn user_interface(
         )?;
 
         Ok(WhatMessage {
-          what: "registration sent".to_string(),
+          what: "registration email sent".to_string(),
           data: Option::None,
         })
       }
