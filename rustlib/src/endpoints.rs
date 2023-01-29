@@ -82,9 +82,6 @@ pub fn user_interface(
               });
             }
 
-            // new registration key?
-            // let registration_key = Uuid::new_v4().to_string();
-
             user.email = rd.email;
 
             dbfun::update_user(&conn, &user)?;
