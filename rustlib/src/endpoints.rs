@@ -84,11 +84,20 @@ pub fn user_interface(
 
             // new registration key?
             // let registration_key = Uuid::new_v4().to_string();
-            let registration_key = reg_key.clone();
 
             user.email = rd.email;
 
             dbfun::update_user(&conn, &user)?;
+            if hex_digest(
+              Algorithm::SHA256,
+              (rd.pwd.clone() + user.salt.as_str())
+                .into_bytes()
+                .as_slice(),
+            ) != user.hashwd
+            {
+              // change password.
+              dbfun::override_password(&conn, user.id, rd.pwd)?;
+            }
 
             // send a registration email.
             email::send_registration(
