@@ -155,6 +155,7 @@ pub fn user_interface(
           &rd,
           Some(registration_key.clone().to_string()),
           None,
+          false, // NOT admin by default.
           None,
           &mut callbacks.on_new_user,
         )?;
@@ -271,6 +272,7 @@ pub fn user_interface(
           &rd,
           Option::None,
           invite.data,
+          false,
           Some(invite.creator),
           &mut callbacks.on_new_user,
         )?;

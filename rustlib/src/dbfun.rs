@@ -32,6 +32,7 @@ pub fn new_user(
   rd: &RegistrationData,
   registration_key: Option<String>,
   data: Option<String>,
+  admin: bool,
   creator: Option<i64>,
   on_new_user: &mut Box<
     dyn FnMut(
@@ -53,8 +54,8 @@ pub fn new_user(
   // make a user record.
   conn.execute(
     "insert into orgauth_user (name, hashwd, salt, email, admin, active, registration_key, createdate)
-      values (?1, ?2, ?3, ?4, 0, 1, ?5, ?6)",
-    params![rd.uid.to_lowercase(), hashwd, salt, rd.email, registration_key, now],
+      values (?1, ?2, ?3, ?4, ?5, 1, ?6, ?7)",
+    params![rd.uid.to_lowercase(), hashwd, salt, rd.email, admin, registration_key, now],
   )?;
 
   let uid = conn.last_insert_rowid();
