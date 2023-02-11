@@ -3,7 +3,7 @@ use crate::data::{Config, RegistrationData};
 use crate::util::{is_token_expired, now, salt_string};
 use actix_session::Session;
 use crypto_hash::{hex_digest, Algorithm};
-use log::info;
+use log::{error, info};
 use rusqlite::{params, Connection};
 use simple_error::bail;
 use std::error::Error;
@@ -191,6 +191,11 @@ pub fn read_user_by_token(
   token: Uuid,
   token_expiration_ms: Option<i64>,
 ) -> Result<User, Box<dyn Error>> {
+  info!(
+    "read_user_by_token: {:?}, expiration_ms: {:?}",
+    token, token_expiration_ms
+  );
+
   let (user, tokendate) = conn.query_row(
     "select id, name, hashwd, salt, email, registration_key, admin, active, orgauth_token.tokendate
       from orgauth_user, orgauth_token where orgauth_user.id = orgauth_token.user and orgauth_token.token = ?1",
@@ -213,13 +218,20 @@ pub fn read_user_by_token(
   )?;
 
   if !user.active {
+    info!("read_user_by_token: account is inactive {:?}", token);
     bail!("account is inactive")
   } else {
     let user = match token_expiration_ms {
       Some(texp) => {
         if is_token_expired(texp, tokendate) {
+          info!("read_user_by_token: login expired {:?}", token);
           bail!("login expired")
         } else {
+          info!(
+            "read_user_by_token: success: user by token: {:?}, expiration_ms: {:?}",
+            token, token_expiration_ms
+          );
+
           user
         }
       }
@@ -251,6 +263,10 @@ pub fn read_user_with_token_regen(
     // set old token to expire in 1 minute, to allow time for in-flight
     // requests to complete.
     let new_exp = now()? + 1 * 60 * 1000;
+    info!(
+      "update regendate for token {:?}, regendate: {:?}",
+      token, new_exp
+    );
     conn.execute(
       "update orgauth_token set regendate = ?1 where token = ?2",
       params![new_exp, token.to_string()],
@@ -262,6 +278,10 @@ pub fn read_user_with_token_regen(
 
 pub fn add_token(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dyn Error>> {
   let now = now()?;
+  info!(
+    "new token; user {:?}, token {:?}, tokendate: {:?}",
+    user, token, now
+  );
   conn.execute(
     "insert into orgauth_token (user, token, tokendate)
      values (?1, ?2, ?3)",
@@ -274,15 +294,48 @@ pub fn add_token(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dy
 pub fn purge_regendate_tokens(conn: &Connection) -> Result<(), Box<dyn Error>> {
   let now = now()?;
 
-  let delete_count = conn.execute(
-    "delete from orgauth_token
-        where regendate < ?1",
-    params![now],
+  struct PurgeToken(i64, String, i64, Option<i64>);
+
+  let mut stmt = conn.prepare(
+    "select user, token, tokendate, regendate from
+      orgauth_token where regendate < ?1",
   )?;
 
-  if delete_count > 0 {
-    info!("{:?} login tokens removed", delete_count);
+  let c_iter = stmt.query_map(params![now], |row| {
+    Ok(PurgeToken(
+      row.get(0)?,
+      row.get(1)?,
+      row.get(2)?,
+      row.get(3)?,
+    ))
+  })?;
+
+  for item in c_iter {
+    match item {
+      Ok(PurgeToken(user, token, tokendate, regendate)) => {
+        info!(
+          "purge_regendate_tokens: purging token: {:?}, {:?}, {:?}, {:?}",
+          user, token, tokendate, regendate
+        );
+        conn.execute(
+          "delete from orgauth_token where 
+          user = ?1 and token = ?2",
+          params![user, token],
+        )?;
+      }
+      Err(e) => error!("error purging token: {:?}", e),
+    }
   }
+
+  // let delete_count = conn.execute(
+  //   "delete from orgauth_token
+  //       where regendate < ?1",
+  //   params![now],
+  // )?;
+
+  // if delete_count > 0 {
+  //   info!("{:?} login tokens removed", delete_count);
+  // }
 
   Ok(())
 }
@@ -294,22 +347,55 @@ pub fn purge_login_tokens(
   let now = now()?;
   let expdt = now - token_expiration_ms;
 
-  let count: i64 = conn.query_row(
-    "select count(*) from
+  struct PurgeToken(i64, String, i64, Option<i64>);
+
+  let mut stmt = conn.prepare(
+    "select user, token, tokendate, regendate from
       orgauth_token where tokendate < ?1",
-    params![expdt],
-    |row| Ok(row.get(0)?),
   )?;
 
-  if count > 0 {
-    info!("removing {} expired orgauth_token records", count);
+  let c_iter = stmt.query_map(params![expdt], |row| {
+    Ok(PurgeToken(
+      row.get(0)?,
+      row.get(1)?,
+      row.get(2)?,
+      row.get(3)?,
+    ))
+  })?;
 
-    conn.execute(
-      "delete from orgauth_token
-        where tokendate < ?1",
-      params![expdt],
-    )?;
+  for item in c_iter {
+    match item {
+      Ok(PurgeToken(user, token, tokendate, regendate)) => {
+        info!(
+          "purge_login_tokens: purging token: {:?}, {:?}, {:?}, {:?}",
+          user, token, tokendate, regendate
+        );
+        conn.execute(
+          "delete from orgauth_token where 
+          user = ?1 and token = ?2",
+          params![user, token],
+        )?;
+      }
+      Err(e) => error!("error purging token: {:?}", e),
+    }
   }
+
+  // let count: i64 = conn.query_row(
+  //   "select count(*) from
+  //     orgauth_token where tokendate < ?1",
+  //   params![expdt],
+  //   |row| Ok(row.get(0)?),
+  // )?;
+
+  // if count > 0 {
+  //   info!("removing {} expired orgauth_token records", count);
+
+  //   conn.execute(
+  //     "delete from orgauth_token
+  //       where tokendate < ?1",
+  //     params![expdt],
+  //   )?;
+  // }
 
   Ok(())
 }
@@ -659,6 +745,7 @@ pub fn change_email(
 }
 
 pub fn delete_user(conn: &Connection, uid: i64) -> Result<(), Box<dyn Error>> {
+  info!("deleting user: {}", uid);
   conn.execute("delete from orgauth_token where user = ?1", params!(uid))?;
   conn.execute("delete from orgauth_newemail where user = ?1", params!(uid))?;
   conn.execute(
