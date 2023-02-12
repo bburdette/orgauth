@@ -260,6 +260,7 @@ pub fn read_user_with_token_regen(
     // add new login token, and flag old for removal.
     let new_token = Uuid::new_v4();
     add_token(&conn, user.id, new_token)?;
+    session.set("token", new_token)?;
     // set old token to expire in 1 minute, to allow time for in-flight
     // requests to complete.
     let new_exp = now()? + 1 * 60 * 1000;
@@ -271,7 +272,6 @@ pub fn read_user_with_token_regen(
       "update orgauth_token set regendate = ?1 where token = ?2",
       params![new_exp, token.to_string()],
     )?;
-    session.set("token", new_token)?;
   }
   Ok(user)
 }
