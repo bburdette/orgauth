@@ -42,7 +42,8 @@ pub fn log_user_in(
   ld.data = data;
   // new token here, and token date.
   let token = Uuid::new_v4();
-  dbfun::add_token(&conn, uid, token)?;
+  // new token has no "prev"
+  dbfun::add_token(&conn, uid, token, None)?;
   session.set("token", token)?;
 
   Ok(WhatMessage {
@@ -432,7 +433,12 @@ pub fn user_interface(
       }),
       Some(token) => {
         let conn = dbfun::connection_open(config.db.as_path())?;
-        match dbfun::read_user_by_token(&conn, token, config.login_token_expiration_ms) {
+        match dbfun::read_user_by_token(
+          &conn,
+          token,
+          config.login_token_expiration_ms,
+          config.regen_login_tokens,
+        ) {
           Err(e) => {
             info!("read_user_by_token error: {:?}", e);
 
@@ -540,7 +546,12 @@ pub fn admin_interface_check(
     }),
     Some(token) => {
       let conn = dbfun::connection_open(config.db.as_path())?;
-      match dbfun::read_user_by_token(&conn, token, config.login_token_expiration_ms) {
+      match dbfun::read_user_by_token(
+        &conn,
+        token,
+        config.login_token_expiration_ms,
+        config.regen_login_tokens,
+      ) {
         Err(e) => {
           info!("read_user_by_token error: {:?}", e);
 
