@@ -433,14 +433,14 @@ pub fn user_interface(
       }),
       Some(token) => {
         let conn = dbfun::connection_open(config.db.as_path())?;
-        match dbfun::read_user_by_token(
+        match dbfun::read_user_by_token_api(
           &conn,
           token,
           config.login_token_expiration_ms,
           config.regen_login_tokens,
         ) {
           Err(e) => {
-            info!("read_user_by_token error: {:?}", e);
+            info!("read_user_by_tokeni_api error3: {:?}", e);
 
             Ok(WhatMessage {
               what: "invalid user or pwd".to_string(),
@@ -546,14 +546,14 @@ pub fn admin_interface_check(
     }),
     Some(token) => {
       let conn = dbfun::connection_open(config.db.as_path())?;
-      match dbfun::read_user_by_token(
+      match dbfun::read_user_by_token_api(
         &conn,
         token,
         config.login_token_expiration_ms,
         config.regen_login_tokens,
       ) {
         Err(e) => {
-          info!("read_user_by_token error: {:?}", e);
+          info!("read_user_by_token_api error4: {:?}", e);
 
           Ok(WhatMessage {
             what: "invalid user or pwd".to_string(),

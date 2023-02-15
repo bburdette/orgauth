@@ -241,40 +241,56 @@ pub fn udpate7(dbfile: &Path) -> Result<(), Box<dyn Error>> {
 
   let mut m = Migration::new();
 
-  m.rename_table("orgauth_token", "orgauth_token_temp");
-
-  // when a new token is created in the 'regen' scheme, point at the previous token.
-  // the previous token won't be removed until the new token actually gets used,
-  // to guard against the situation where the new token doesn't get to the browser somehow.
-  m.create_table("orgauth_token", |t| {
-    t.add_column(
-      "user",
-      types::foreign(
-        "orgauth_user",
-        "id",
-        types::ReferentialAction::Restrict,
-        types::ReferentialAction::Restrict,
-      )
-      .nullable(false),
-    );
-    t.add_column("token", types::text().nullable(false));
-    t.add_column("tokendate", types::integer().nullable(false));
+  // add token table.  multiple tokens per user to support multiple browsers and/or devices.
+  m.change_table("orgauth_token", |t| {
     t.add_column("prevtoken", types::text().nullable(true));
-    t.add_index(
-      "orgauth_token_unq",
-      types::index(vec!["user", "token"]).unique(true),
-    );
   });
 
   conn.execute_batch(m.make::<Sqlite>().as_str())?;
 
-  conn.execute(
-    "insert into orgauth_token (user, token, tokendate) 
-      select user, token, tokendate from orgauth_token_temp",
-    params![],
-  )?;
-
-  conn.execute("drop table orgauth_token_temp", params![])?;
-
   Ok(())
 }
+
+// pub fn udpate7(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+//   // db connection without foreign key checking.
+//   let conn = Connection::open(dbfile)?;
+
+//   let mut m = Migration::new();
+
+//   m.rename_table("orgauth_token", "orgauth_token_temp");
+
+//   // when a new token is created in the 'regen' scheme, point at the previous token.
+//   // the previous token won't be removed until the new token actually gets used,
+//   // to guard against the situation where the new token doesn't get to the browser somehow.
+//   m.create_table("orgauth_token", |t| {
+//     t.add_column(
+//       "user",
+//       types::foreign(
+//         "orgauth_user",
+//         "id",
+//         types::ReferentialAction::Restrict,
+//         types::ReferentialAction::Restrict,
+//       )
+//       .nullable(false),
+//     );
+//     t.add_column("token", types::text().nullable(false));
+//     t.add_column("tokendate", types::integer().nullable(false));
+//     t.add_column("prevtoken", types::text().nullable(true));
+//     t.add_index(
+//       "orgauth_token_unq",
+//       types::index(vec!["user", "token"]).unique(true),
+//     );
+//   });
+
+//   conn.execute_batch(m.make::<Sqlite>().as_str())?;
+
+//   conn.execute(
+//     "insert into orgauth_token (user, token, tokendate)
+//       select user, token, tokendate from orgauth_token_temp",
+//     params![],
+//   )?;
+
+//   conn.execute("drop table orgauth_token_temp", params![])?;
+
+//   Ok(())
+// }
