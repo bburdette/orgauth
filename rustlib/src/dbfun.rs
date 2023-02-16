@@ -28,6 +28,8 @@ pub fn connection_open(dbfile: &Path) -> Result<Connection, Box<dyn Error>> {
   Ok(conn)
 }
 
+const regen_ms: i64 = 10 * 1000;
+
 pub fn new_user(
   conn: &Connection,
   rd: &RegistrationData,
@@ -305,17 +307,20 @@ pub fn read_user_by_token_api(
 
   if regen_login_tokens {
     if let Some(pt) = tokeninfo.prevtoken {
-      let rdt = now()? - 60 * 1000;
+      let rdt = now()? - regen_ms;
 
       // delete IF regen is past.
 
-      // remove prevtoken,
-      let dc = conn.execute(
-        "delete from orgauth_token where token = ?1 and regendate < ?2",
+      // prevtoken regen time expired?
+      let dc: i64 = conn.query_row(
+        "select count(*) from orgauth_token where token = ?1 and regendate < ?2",
         params![pt, rdt],
+        |row| Ok(row.get(0)?),
       )?;
 
       if dc == 1 {
+        removeTokenChain(&conn, &pt)?;
+
         info!("deleted token: {:?}", pt);
 
         // clear out prevtoken field
@@ -332,6 +337,24 @@ pub fn read_user_by_token_api(
   }
 
   Ok(user)
+}
+
+fn removeTokenChain(conn: &Connection, token: &String) -> Result<(), Box<dyn Error>> {
+  let pt: Option<String> = conn.query_row(
+    "select prevtoken from orgauth_token where token = ?1",
+    params![token],
+    |row| Ok(row.get(0)?),
+  )?;
+
+  if let Some(ref pt) = pt {
+    removeTokenChain(&conn, &pt)?;
+  }
+
+  info!("removing token chain {:?}", token);
+
+  conn.execute("delete from orgauth_token where token = ?1", params![pt])?;
+
+  Ok(())
 }
 
 // Use this one when loading a page, when the token will be saved to the browser.
@@ -366,7 +389,7 @@ pub fn read_user_with_token_pageload(
     let nt = match tokeninfo.regendate {
       Some(dt) => {
         let now = now()?;
-        if dt + 60 * 1000 < now {
+        if dt + regen_ms < now {
           true // expired
         } else {
           false
@@ -456,7 +479,7 @@ pub fn mark_prevtoken(
   // set old token to expire in 1 minute, to allow time for in-flight
   // requests to complete.
   let now = now()?;
-  let exp = now - 1 * 60 * 1000;
+  let exp = now - regen_ms;
   info!(
     "update regendate for token {:?}, regendate: {:?}",
     prevtoken, now
