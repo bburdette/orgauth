@@ -455,55 +455,6 @@ pub fn mark_prevtoken(
   }
 }
 
-// pub fn purge_regendate_tokens(conn: &Connection) -> Result<(), Box<dyn Error>> {
-//   let now = now()?;
-
-//   struct PurgeToken(i64, String, i64, Option<i64>);
-
-//   let mut stmt = conn.prepare(
-//     "select user, token, tokendate, regendate from
-//       orgauth_token where regendate < ?1",
-//   )?;
-
-//   let c_iter = stmt.query_map(params![now], |row| {
-//     Ok(PurgeToken(
-//       row.get(0)?,
-//       row.get(1)?,
-//       row.get(2)?,
-//       row.get(3)?,
-//     ))
-//   })?;
-
-//   for item in c_iter {
-//     match item {
-//       Ok(PurgeToken(user, token, tokendate, regendate)) => {
-//         info!(
-//           "purge_regendate_tokens: purging token: {:?}, {:?}, {:?}, {:?}",
-//           user, token, tokendate, regendate
-//         );
-//         conn.execute(
-//           "delete from orgauth_token where
-//           user = ?1 and token = ?2",
-//           params![user, token],
-//         )?;
-//       }
-//       Err(e) => error!("error purging token: {:?}", e),
-//     }
-//   }
-
-//   // let delete_count = conn.execute(
-//   //   "delete from orgauth_token
-//   //       where regendate < ?1",
-//   //   params![now],
-//   // )?;
-
-//   // if delete_count > 0 {
-//   //   info!("{:?} login tokens removed", delete_count);
-//   // }
-
-//   Ok(())
-// }
-
 pub fn purge_login_tokens(
   conn: &Connection,
   token_expiration_ms: i64,
