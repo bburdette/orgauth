@@ -194,11 +194,6 @@ struct TokenInfo {
 }
 
 fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo), Box<dyn Error>> {
-  // info!(
-  //   "read_user_by_token: {:?}, expiration_ms: {:?}",
-  //   token, token_expiration_ms
-  // );
-
   let (user, tokendate, regendate, prevtoken) : (User, i64, Option<i64>, Option<String>) = conn.query_row(
     "select id, name, hashwd, salt, email, registration_key, admin, active, 
         orgauth_token.tokendate, orgauth_token.regendate, orgauth_token.prevtoken
@@ -240,25 +235,11 @@ fn checkUser(
   token_expiration_ms: Option<i64>,
 ) -> Result<(), Box<dyn Error>> {
   if !user.active {
-    info!("read_user_by_token: account is inactive {:?}", token);
     bail!("account is inactive")
   } else {
-    let user = match token_expiration_ms {
-      Some(texp) => {
-        if is_token_expired(texp, tokendate) {
-          info!("read_user_by_token: login expired {:?}", token);
-          bail!("login expired")
-        } else {
-          info!(
-            "read_user_by_token: success: user by token: {:?}, expiration_ms: {:?}",
-            token, token_expiration_ms
-          );
-
-          ()
-        }
-      }
-      None => {
-        info!("read_user_by_token: success: no token expiration");
+    if let Some(texp) = token_expiration_ms {
+      if is_token_expired(texp, tokendate) {
+        bail!("login expired")
       }
     };
 
@@ -274,15 +255,9 @@ pub fn read_user_by_token_api(
   token_expiration_ms: Option<i64>,
   regen_login_tokens: bool,
 ) -> Result<User, Box<dyn Error>> {
-  info!(
-    "read_user_by_token_api: {:?}, expiration_ms: {:?}",
-    token, token_expiration_ms
-  );
-
   let (user, tokeninfo) = read_user_by_token(&conn, token)?;
 
   checkUser(&user, token, tokeninfo.tokendate, token_expiration_ms)?;
-  info!("checkuser ok");
 
   if regen_login_tokens {
     if let Some(pt) = tokeninfo.prevtoken {
@@ -300,15 +275,11 @@ pub fn read_user_by_token_api(
       if dc == 1 {
         removeTokenChain(&conn, &pt, &token.to_string())?;
 
-        info!("deleted token: {:?}", pt);
-
         // clear out prevtoken field
         let wat = conn.execute(
           "update orgauth_token set prevtoken = null  where token = ?1",
           params![token.to_string()],
         )?;
-      } else {
-        info!("didn't deleted token: {:?}", pt);
       }
     }
   }
@@ -321,8 +292,6 @@ fn removeTokenChain(
   token: &String,
   keeptoken: &String,
 ) -> Result<(), Box<dyn Error>> {
-  info!("removing token chain {:?}", token);
-
   let pt: Option<String> = conn.query_row(
     "select prevtoken from orgauth_token where token = ?1",
     params![token],
@@ -352,22 +321,11 @@ pub fn read_user_with_token_pageload(
   regen_login_tokens: bool,
   token_expiration_ms: Option<i64>,
 ) -> Result<User, Box<dyn Error>> {
-  info!(
-    "read_user_by_token_pageload: {:?}, expiration_ms: {:?}",
-    token, token_expiration_ms
-  );
-
   let tx = conn.transaction()?;
-
-  info!("pre read_user_by_token");
 
   let (user, tokeninfo) = read_user_by_token(&tx, token)?;
 
-  info!("pre checkuser");
-
   checkUser(&user, token, tokeninfo.tokendate, token_expiration_ms)?;
-
-  info!("checkuser ok");
 
   if regen_login_tokens {
     let nt = match tokeninfo.regendate {
@@ -383,14 +341,11 @@ pub fn read_user_with_token_pageload(
     };
 
     if nt {
-      info!("pageload: making new token");
-
       // add new login token, and flag old for removal.
       mark_prevtoken(&tx, token)?;
       let new_token = Uuid::new_v4();
       add_token(&tx, user.id, new_token, Some(token))?;
       session.set("token", new_token)?;
-      info!("pageload: new token {:?}", new_token);
     }
   }
 
@@ -406,10 +361,6 @@ pub fn add_token(
   prevtoken: Option<Uuid>,
 ) -> Result<(), Box<dyn Error>> {
   let now = now()?;
-  info!(
-    "new token; user {:?}, token {:?}, tokendate: {:?}, prevtoken: {:?}",
-    user, token, now, prevtoken
-  );
   conn.execute(
     "insert into orgauth_token (user, token, tokendate, prevtoken)
      values (?1, ?2, ?3, ?4)",
@@ -435,10 +386,6 @@ pub fn mark_prevtoken(
   // requests to complete.
   let now = now()?;
   let exp = now - regen_ms;
-  info!(
-    "update regendate for token {:?}, regendate: {:?}",
-    prevtoken, now
-  );
 
   // allow update if regendate is expired, or null.
   let wat = conn.execute(
@@ -481,10 +428,7 @@ pub fn purge_login_tokens(
   for item in c_iter {
     match item {
       Ok(PurgeToken(user, token, tokendate, prevtoken)) => {
-        info!(
-          "purge_login_tokens: purging token: {:?}, {:?}, {:?}, {:?}",
-          user, token, tokendate, prevtoken
-        );
+        info!("purging login token for user {}", user);
         conn.execute(
           "delete from orgauth_token where 
           user = ?1 and token = ?2",

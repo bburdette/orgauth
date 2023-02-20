@@ -58,7 +58,6 @@ pub fn user_interface(
   callbacks: &mut Callbacks,
   msg: WhatMessage,
 ) -> Result<WhatMessage, Box<dyn Error>> {
-  info!("got a user message: {}", msg.what);
   let conn = dbfun::connection_open(config.db.as_path())?;
   if msg.what.as_str() == "register" {
     let msgdata = Option::ok_or(msg.data, "malformed registration data")?;
@@ -191,7 +190,7 @@ pub fn user_interface(
     let msgdata = Option::ok_or(msg.data, "malformed registration data")?;
     let rsvp: RSVP = serde_json::from_value(msgdata)?;
     // invite exists?
-    info!("rsvp: {:?}", rsvp);
+    info!("rsvp: {:?}", rsvp.uid);
     let invite = match dbfun::read_userinvite(&conn, config.mainsite.as_str(), rsvp.invite.as_str())
     {
       Ok(None) => {
@@ -439,14 +438,10 @@ pub fn user_interface(
           config.login_token_expiration_ms,
           config.regen_login_tokens,
         ) {
-          Err(e) => {
-            info!("read_user_by_tokeni_api error3: {:?}", e);
-
-            Ok(WhatMessage {
-              what: "invalid user or pwd".to_string(),
-              data: Option::None,
-            })
-          }
+          Err(e) => Ok(WhatMessage {
+            what: "invalid user or pwd".to_string(),
+            data: Option::None,
+          }),
           Ok(userdata) => {
             // finally!  processing messages as logged in user.
             user_interface_loggedin(&config, userdata.id, &msg)
@@ -552,14 +547,10 @@ pub fn admin_interface_check(
         config.login_token_expiration_ms,
         config.regen_login_tokens,
       ) {
-        Err(e) => {
-          info!("read_user_by_token_api error4: {:?}", e);
-
-          Ok(WhatMessage {
-            what: "invalid user or pwd".to_string(),
-            data: Some(serde_json::Value::Null),
-          })
-        }
+        Err(e) => Ok(WhatMessage {
+          what: "invalid user or pwd".to_string(),
+          data: Some(serde_json::Value::Null),
+        }),
         Ok(userdata) => {
           if userdata.admin {
             // finally!  processing messages as logged in user.
