@@ -3,7 +3,7 @@ use crate::data::{Config, RegistrationData};
 use crate::util::{is_token_expired, now, salt_string};
 use actix_session::Session;
 use crypto_hash::{hex_digest, Algorithm};
-use log::info;
+use log::{error, info};
 use rusqlite::{params, Connection};
 use simple_error::bail;
 use std::error::Error;
@@ -26,6 +26,8 @@ pub fn connection_open(dbfile: &Path) -> Result<Connection, Box<dyn Error>> {
 
   Ok(conn)
 }
+
+const REGEN_MS: i64 = 10 * 1000;
 
 pub fn new_user(
   conn: &Connection,
@@ -184,15 +186,16 @@ pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, Box<dyn Error
   Ok(user)
 }
 
-// Use this variant for api calls; doesn't refresh the token
-// in regen mode.
-pub fn read_user_by_token(
-  conn: &Connection,
-  token: Uuid,
-  token_expiration_ms: Option<i64>,
-) -> Result<User, Box<dyn Error>> {
-  let (user, tokendate) = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key, admin, active, orgauth_token.tokendate
+struct TokenInfo {
+  tokendate: i64,
+  regendate: Option<i64>,
+  prevtoken: Option<String>,
+}
+
+fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo), Box<dyn Error>> {
+  let (user, tokendate, regendate, prevtoken) : (User, i64, Option<i64>, Option<String>) = conn.query_row(
+    "select id, name, hashwd, salt, email, registration_key, admin, active, 
+        orgauth_token.tokendate, orgauth_token.regendate, orgauth_token.prevtoken
       from orgauth_user, orgauth_token where orgauth_user.id = orgauth_token.user and orgauth_token.token = ?1",
     params![token.to_string()],
     |row| {
@@ -208,83 +211,185 @@ pub fn read_user_by_token(
           active: row.get(7)?,
         },
         row.get(8)?,
+        row.get(9)?,
+        row.get(10)?,
       ))
     },
   )?;
 
+  Ok((
+    user,
+    TokenInfo {
+      tokendate: tokendate,
+      regendate: regendate,
+      prevtoken: prevtoken,
+    },
+  ))
+}
+
+fn check_user(
+  user: &User,
+  tokendate: i64,
+  token_expiration_ms: Option<i64>,
+) -> Result<(), Box<dyn Error>> {
   if !user.active {
     bail!("account is inactive")
   } else {
-    let user = match token_expiration_ms {
-      Some(texp) => {
-        if is_token_expired(texp, tokendate) {
-          bail!("login expired")
-        } else {
-          user
-        }
+    if let Some(texp) = token_expiration_ms {
+      if is_token_expired(texp, tokendate) {
+        bail!("login expired")
       }
-      None => user,
     };
 
-    Ok(user)
+    Ok(())
   }
+}
+
+// Use this variant for api calls; doesn't refresh the token
+// in regen mode, but does remove prev tokens.
+pub fn read_user_by_token_api(
+  conn: &Connection,
+  token: Uuid,
+  token_expiration_ms: Option<i64>,
+  regen_login_tokens: bool,
+) -> Result<User, Box<dyn Error>> {
+  let (user, tokeninfo) = read_user_by_token(&conn, token)?;
+
+  check_user(&user, tokeninfo.tokendate, token_expiration_ms)?;
+
+  if regen_login_tokens {
+    if let Some(pt) = tokeninfo.prevtoken {
+      let rdt = now()? - REGEN_MS;
+
+      // delete IF regen is past.
+
+      // prevtoken regen time expired?
+      let dc: i64 = conn.query_row(
+        "select count(*) from orgauth_token where token = ?1 and regendate < ?2",
+        params![pt, rdt],
+        |row| Ok(row.get(0)?),
+      )?;
+
+      if dc == 1 {
+        remove_token_chain(&conn, &pt, &token.to_string())?;
+
+        // clear out prevtoken field
+        conn.execute(
+          "update orgauth_token set prevtoken = null  where token = ?1",
+          params![token.to_string()],
+        )?;
+      }
+    }
+  }
+
+  Ok(user)
+}
+
+fn remove_token_chain(
+  conn: &Connection,
+  token: &String,
+  keeptoken: &String,
+) -> Result<(), Box<dyn Error>> {
+  let pt: Option<String> = conn.query_row(
+    "select prevtoken from orgauth_token where token = ?1",
+    params![token],
+    |row| Ok(row.get(0)?),
+  )?;
+
+  if let Some(ref pt) = pt {
+    remove_token_chain(&conn, &pt, &keeptoken)?;
+  }
+
+  // remove this token AND any tokens that descend from it.
+  // EXCEPT for the keeptoken.
+  conn.execute(
+    "delete from orgauth_token where token = ?1 or (prevtoken = ?1 and token != ?2)",
+    params![token, keeptoken],
+  )?;
+
+  Ok(())
 }
 
 // Use this one when loading a page, when the token will be saved to the browser.
 // Not for api calls, where a new token would not be set.
-pub fn read_user_with_token_regen(
-  conn: &Connection,
+pub fn read_user_with_token_pageload(
+  conn: &mut Connection,
   session: &Session,
   token: Uuid,
   regen_login_tokens: bool,
   token_expiration_ms: Option<i64>,
 ) -> Result<User, Box<dyn Error>> {
-  // remove any tokens that have been marked for removal
-  purge_regendate_tokens(&conn)?;
+  let tx = conn.transaction()?;
 
-  let user = read_user_by_token(&conn, token, token_expiration_ms)?;
+  let (user, tokeninfo) = read_user_by_token(&tx, token)?;
+
+  check_user(&user, tokeninfo.tokendate, token_expiration_ms)?;
 
   if regen_login_tokens {
-    // add new login token, and flag old for removal.
-    let new_token = Uuid::new_v4();
-    add_token(&conn, user.id, new_token)?;
-    // set old token to expire in 1 minute, to allow time for in-flight
-    // requests to complete.
-    let new_exp = now()? + 1 * 60 * 1000;
-    conn.execute(
-      "update orgauth_token set regendate = ?1 where token = ?2",
-      params![new_exp, token.to_string()],
-    )?;
-    session.set("token", new_token)?;
+    let nt = match tokeninfo.regendate {
+      Some(dt) => {
+        let now = now()?;
+        if dt + REGEN_MS < now {
+          true // expired
+        } else {
+          false
+        }
+      }
+      None => true,
+    };
+
+    if nt {
+      // add new login token, and flag old for removal.
+      mark_prevtoken(&tx, token)?;
+      let new_token = Uuid::new_v4();
+      add_token(&tx, user.id, new_token, Some(token))?;
+      session.set("token", new_token)?;
+    }
   }
+
+  tx.commit()?;
+
   Ok(user)
 }
 
-pub fn add_token(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dyn Error>> {
+pub fn add_token(
+  conn: &Connection,
+  user: i64,
+  token: Uuid,
+  prevtoken: Option<Uuid>,
+) -> Result<(), Box<dyn Error>> {
   let now = now()?;
   conn.execute(
-    "insert into orgauth_token (user, token, tokendate)
-     values (?1, ?2, ?3)",
-    params![user, token.to_string(), now],
+    "insert into orgauth_token (user, token, tokendate, prevtoken)
+     values (?1, ?2, ?3, ?4)",
+    params![
+      user,
+      token.to_string(),
+      now,
+      prevtoken.map(|s| s.to_string())
+    ],
   )?;
 
   Ok(())
 }
 
-pub fn purge_regendate_tokens(conn: &Connection) -> Result<(), Box<dyn Error>> {
+pub fn mark_prevtoken(
+  conn: &Connection,
+  // token: Uuid,
+  prevtoken: Uuid,
+) -> Result<bool, Box<dyn Error>> {
+  // set regendate to now.
   let now = now()?;
-
-  let delete_count = conn.execute(
-    "delete from orgauth_token
-        where regendate < ?1",
-    params![now],
+  let wat = conn.execute(
+    "update orgauth_token set regendate = ?1 where token = ?2",
+    params![now, prevtoken.to_string()],
   )?;
 
-  if delete_count > 0 {
-    info!("{:?} login tokens removed", delete_count);
+  match wat {
+    1 => Ok(true),
+    0 => Ok(false), // could mean token doesn't exist, or regendate expired.
+    x => bail!("too many records updated: {}", x),
   }
-
-  Ok(())
 }
 
 pub fn purge_login_tokens(
@@ -294,21 +399,34 @@ pub fn purge_login_tokens(
   let now = now()?;
   let expdt = now - token_expiration_ms;
 
-  let count: i64 = conn.query_row(
-    "select count(*) from
+  struct PurgeToken(i64, String, i64, Option<String>);
+
+  let mut stmt = conn.prepare(
+    "select user, token, tokendate, prevtoken from
       orgauth_token where tokendate < ?1",
-    params![expdt],
-    |row| Ok(row.get(0)?),
   )?;
 
-  if count > 0 {
-    info!("removing {} expired orgauth_token records", count);
+  let c_iter = stmt.query_map(params![expdt], |row| {
+    Ok(PurgeToken(
+      row.get(0)?,
+      row.get(1)?,
+      row.get(2)?,
+      row.get(3)?,
+    ))
+  })?;
 
-    conn.execute(
-      "delete from orgauth_token
-        where tokendate < ?1",
-      params![expdt],
-    )?;
+  for item in c_iter {
+    match item {
+      Ok(PurgeToken(user, token, _tokendate, _prevtoken)) => {
+        info!("purging login token for user {}", user);
+        conn.execute(
+          "delete from orgauth_token where 
+          user = ?1 and token = ?2",
+          params![user, token],
+        )?;
+      }
+      Err(e) => error!("error purging token: {:?}", e),
+    }
   }
 
   Ok(())
@@ -659,6 +777,7 @@ pub fn change_email(
 }
 
 pub fn delete_user(conn: &Connection, uid: i64) -> Result<(), Box<dyn Error>> {
+  info!("deleting user: {}", uid);
   conn.execute("delete from orgauth_token where user = ?1", params!(uid))?;
   conn.execute("delete from orgauth_newemail where user = ?1", params!(uid))?;
   conn.execute(

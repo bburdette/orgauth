@@ -234,3 +234,19 @@ pub fn udpate6(dbfile: &Path) -> Result<(), Box<dyn Error>> {
 
   Ok(())
 }
+
+pub fn udpate7(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+  // db connection without foreign key checking.
+  let conn = Connection::open(dbfile)?;
+
+  let mut m = Migration::new();
+
+  // add token table.  multiple tokens per user to support multiple browsers and/or devices.
+  m.change_table("orgauth_token", |t| {
+    t.add_column("prevtoken", types::text().nullable(true));
+  });
+
+  conn.execute_batch(m.make::<Sqlite>().as_str())?;
+
+  Ok(())
+}
