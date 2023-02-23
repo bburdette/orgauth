@@ -438,7 +438,7 @@ pub fn user_interface(
           config.login_token_expiration_ms,
           config.regen_login_tokens,
         ) {
-          Err(e) => Ok(WhatMessage {
+          Err(_e) => Ok(WhatMessage {
             what: "invalid user or pwd".to_string(),
             data: Option::None,
           }),
@@ -547,7 +547,7 @@ pub fn admin_interface_check(
         config.login_token_expiration_ms,
         config.regen_login_tokens,
       ) {
-        Err(e) => Ok(WhatMessage {
+        Err(_e) => Ok(WhatMessage {
           what: "invalid user or pwd".to_string(),
           data: Some(serde_json::Value::Null),
         }),

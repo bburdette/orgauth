@@ -8,7 +8,6 @@ use rusqlite::{params, Connection};
 use simple_error::bail;
 use std::error::Error;
 use std::path::Path;
-use std::str::FromStr;
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -230,7 +229,6 @@ fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo
 
 fn check_user(
   user: &User,
-  token: Uuid,
   tokendate: i64,
   token_expiration_ms: Option<i64>,
 ) -> Result<(), Box<dyn Error>> {
@@ -257,7 +255,7 @@ pub fn read_user_by_token_api(
 ) -> Result<User, Box<dyn Error>> {
   let (user, tokeninfo) = read_user_by_token(&conn, token)?;
 
-  check_user(&user, token, tokeninfo.tokendate, token_expiration_ms)?;
+  check_user(&user, tokeninfo.tokendate, token_expiration_ms)?;
 
   if regen_login_tokens {
     if let Some(pt) = tokeninfo.prevtoken {
@@ -276,7 +274,7 @@ pub fn read_user_by_token_api(
         remove_token_chain(&conn, &pt, &token.to_string())?;
 
         // clear out prevtoken field
-        let wat = conn.execute(
+        conn.execute(
           "update orgauth_token set prevtoken = null  where token = ?1",
           params![token.to_string()],
         )?;
@@ -325,7 +323,7 @@ pub fn read_user_with_token_pageload(
 
   let (user, tokeninfo) = read_user_by_token(&tx, token)?;
 
-  check_user(&user, token, tokeninfo.tokendate, token_expiration_ms)?;
+  check_user(&user, tokeninfo.tokendate, token_expiration_ms)?;
 
   if regen_login_tokens {
     let nt = match tokeninfo.regendate {
@@ -419,7 +417,7 @@ pub fn purge_login_tokens(
 
   for item in c_iter {
     match item {
-      Ok(PurgeToken(user, token, tokendate, prevtoken)) => {
+      Ok(PurgeToken(user, token, _tokendate, _prevtoken)) => {
         info!("purging login token for user {}", user);
         conn.execute(
           "delete from orgauth_token where 
