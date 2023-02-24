@@ -4,6 +4,7 @@ use crate::data::{
 };
 use crate::dbfun;
 use crate::email;
+use crate::error;
 use crate::util;
 use crate::util::is_token_expired;
 use actix_session::Session;
@@ -24,11 +25,11 @@ pub struct Callbacks {
       Option<String>,
       Option<i64>,
       i64,
-    ) -> Result<(), Box<dyn Error>>,
+    ) -> Result<(), error::Error>,
   >,
   pub extra_login_data:
-    Box<dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, Box<dyn Error>>>,
-  pub on_delete_user: Box<dyn FnMut(&Connection, i64) -> Result<bool, Box<dyn Error>>>,
+    Box<dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, error::Error>>,
+  pub on_delete_user: Box<dyn FnMut(&Connection, i64) -> Result<bool, error::Error>>,
 }
 
 pub fn log_user_in(
@@ -36,7 +37,7 @@ pub fn log_user_in(
   callbacks: &mut Callbacks,
   conn: &Connection,
   uid: i64,
-) -> Result<WhatMessage, Box<dyn Error>> {
+) -> Result<WhatMessage, error::Error> {
   let mut ld = dbfun::login_data(&conn, uid)?;
   let data = (callbacks.extra_login_data)(&conn, ld.userid)?;
   ld.data = data;
@@ -57,15 +58,13 @@ pub fn user_interface(
   config: &Config,
   callbacks: &mut Callbacks,
   msg: WhatMessage,
-) -> Result<WhatMessage, Box<dyn Error>> {
+) -> Result<WhatMessage, error::Error> {
   let conn = dbfun::connection_open(config.db.as_path())?;
   if msg.what.as_str() == "register" {
     let msgdata = Option::ok_or(msg.data, "malformed registration data")?;
     let rd: RegistrationData = serde_json::from_value(msgdata)?;
     if !config.open_registration {
-      return Err(Box::new(simple_error::SimpleError::new(format!(
-        "new user registration is disabled",
-      ))));
+      return Err("new user registration is disabled".into());
     }
     // do the registration thing.
     // user already exists?
@@ -193,11 +192,7 @@ pub fn user_interface(
     info!("rsvp: {:?}", rsvp.uid);
     let invite = match dbfun::read_userinvite(&conn, config.mainsite.as_str(), rsvp.invite.as_str())
     {
-      Ok(None) => {
-        return Err(Box::new(simple_error::SimpleError::new(
-          "user invite not found",
-        )))
-      }
+      Ok(None) => return Err("user invite not found".into()),
       Err(e) => return Err(e),
       Ok(Some(i)) => i,
     };
@@ -306,9 +301,7 @@ pub fn user_interface(
     let msgdata = Option::ok_or(msg.data, "malformed registration data")?;
     let token: String = serde_json::from_value(msgdata)?;
     match dbfun::read_userinvite(&conn, config.mainsite.as_str(), token.as_str()) {
-      Ok(None) => Err(Box::new(simple_error::SimpleError::new(
-        "user invite not found",
-      ))),
+      Ok(None) => Err("user invite not found".into()),
       Err(e) => Err(e),
       Ok(Some(invite)) => Ok(WhatMessage {
         what: "user invite".to_string(),
@@ -450,10 +443,7 @@ pub fn user_interface(
       }
     }
   } else {
-    Err(Box::new(simple_error::SimpleError::new(format!(
-      "invalid 'what' code:'{}'",
-      msg.what
-    ))))
+    Err(format!("invalid 'what' code:'{}'", msg.what).into())
   }
 }
 
@@ -461,7 +451,7 @@ pub fn user_interface_loggedin(
   config: &Config,
   uid: i64,
   msg: &WhatMessage,
-) -> Result<WhatMessage, Box<dyn Error>> {
+) -> Result<WhatMessage, error::Error> {
   if msg.what == "ChangePassword" {
     let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
     let cp: ChangePassword = serde_json::from_value(msgdata.clone())?;
@@ -516,15 +506,10 @@ pub fn user_interface_loggedin(
         }),
       }
     } else {
-      Err(Box::new(simple_error::SimpleError::new(format!(
-        "non-admin user invites are disabled!"
-      ))))
+      Err("non-admin user invites are disabled!".into())
     }
   } else {
-    Err(Box::new(simple_error::SimpleError::new(format!(
-      "invalid 'what' code:'{}'",
-      msg.what
-    ))))
+    Err(format!("invalid 'what' code:'{}'", msg.what).into())
   }
 }
 
@@ -533,7 +518,7 @@ pub fn admin_interface_check(
   config: &Config,
   callbacks: &mut Callbacks,
   msg: WhatMessage,
-) -> Result<WhatMessage, Box<dyn Error>> {
+) -> Result<WhatMessage, error::Error> {
   match session.get::<Uuid>("token")? {
     None => Ok(WhatMessage {
       what: "not logged in".to_string(),
@@ -573,7 +558,7 @@ pub fn admin_interface(
   user: &User,
   callbacks: &mut Callbacks,
   msg: &WhatMessage,
-) -> Result<WhatMessage, Box<dyn Error>> {
+) -> Result<WhatMessage, error::Error> {
   if msg.what == "getusers" {
     let users = dbfun::read_users(&conn, &mut callbacks.extra_login_data)?;
     Ok(WhatMessage {
@@ -688,10 +673,7 @@ pub fn admin_interface(
       }),
     }
   } else {
-    Err(Box::new(simple_error::SimpleError::new(format!(
-      "invalid 'what' code:'{}'",
-      msg.what
-    ))))
+    Err(format!("invalid 'what' code:'{}'", msg.what).into())
   }
 }
 

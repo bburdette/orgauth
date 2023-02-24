@@ -1,5 +1,6 @@
 use crate::data::{ChangeEmail, ChangePassword, LoginData, User, UserInvite};
 use crate::data::{Config, RegistrationData};
+use crate::error;
 use crate::util::{is_token_expired, now, salt_string};
 use actix_session::Session;
 use crypto_hash::{hex_digest, Algorithm};
@@ -11,7 +12,7 @@ use std::path::Path;
 use std::time::Duration;
 use uuid::Uuid;
 
-pub fn connection_open(dbfile: &Path) -> Result<Connection, Box<dyn Error>> {
+pub fn connection_open(dbfile: &Path) -> Result<Connection, error::Error> {
   let conn = Connection::open(dbfile)?;
 
   // conn.busy_timeout(Duration::from_millis(500))?;
@@ -43,9 +44,9 @@ pub fn new_user(
       Option<String>,
       Option<i64>,
       i64,
-    ) -> Result<(), Box<dyn Error>>,
+    ) -> Result<(), error::Error>,
   >,
-) -> Result<i64, Box<dyn Error>> {
+) -> Result<i64, error::Error> {
   let now = now()?;
   let salt = salt_string();
   let hashwd = hex_digest(
@@ -67,7 +68,8 @@ pub fn new_user(
   Ok(uid)
 }
 
-pub fn user_id(conn: &Connection, name: &str) -> Result<i64, Box<dyn Error>> {
+// pub fn user_id(conn: &Connection, name: &str) -> Result<i64, error::Error> {
+pub fn user_id(conn: &Connection, name: &str) -> Result<i64, error::Error> {
   let id: i64 = conn.query_row(
     "select id from orgauth_user
       where orgauth_user.name = ?1",
@@ -77,7 +79,7 @@ pub fn user_id(conn: &Connection, name: &str) -> Result<i64, Box<dyn Error>> {
   Ok(id)
 }
 
-pub fn login_data(conn: &Connection, uid: i64) -> Result<LoginData, Box<dyn Error>> {
+pub fn login_data(conn: &Connection, uid: i64) -> Result<LoginData, error::Error> {
   let user = read_user_by_id(&conn, uid)?;
   Ok(LoginData {
     userid: uid,
@@ -93,9 +95,9 @@ pub fn login_data_cb(
   conn: &Connection,
   uid: i64,
   extra_login_data: &mut Box<
-    dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, Box<dyn Error>>,
+    dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, error::Error>,
   >,
-) -> Result<LoginData, Box<dyn Error>> {
+) -> Result<LoginData, error::Error> {
   let user = read_user_by_id(&conn, uid)?;
   Ok(LoginData {
     userid: uid,
@@ -107,7 +109,7 @@ pub fn login_data_cb(
   })
 }
 
-pub fn update_login_data(conn: &Connection, ld: &LoginData) -> Result<(), Box<dyn Error>> {
+pub fn update_login_data(conn: &Connection, ld: &LoginData) -> Result<(), error::Error> {
   let mut user = read_user_by_id(&conn, ld.userid)?;
   user.name = ld.name.to_lowercase();
   user.email = ld.email.clone();
@@ -119,9 +121,9 @@ pub fn update_login_data(conn: &Connection, ld: &LoginData) -> Result<(), Box<dy
 pub fn read_users(
   conn: &Connection,
   extra_login_data: &mut Box<
-    dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, Box<dyn Error>>,
+    dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, error::Error>,
   >,
-) -> Result<Vec<LoginData>, Box<dyn Error>> {
+) -> Result<Vec<LoginData>, error::Error> {
   let mut pstmt = conn.prepare(
     // return zklinks that link to or from notes that link to 'public'.
     "select id from orgauth_user",
@@ -142,7 +144,7 @@ pub fn read_users(
   r
 }
 
-pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, Box<dyn Error>> {
+pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, error::Error> {
   let user = conn.query_row(
     "select id, hashwd, salt, email, registration_key, admin, active
       from orgauth_user where name = ?1",
@@ -164,7 +166,7 @@ pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, Box<dyn 
   Ok(user)
 }
 
-pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, Box<dyn Error>> {
+pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, error::Error> {
   let user = conn.query_row(
     "select id, name, hashwd, salt, email, registration_key, admin, active
       from orgauth_user where id = ?1",
@@ -192,7 +194,7 @@ struct TokenInfo {
   prevtoken: Option<String>,
 }
 
-fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo), Box<dyn Error>> {
+fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo), error::Error> {
   let (user, tokendate, regendate, prevtoken) : (User, i64, Option<i64>, Option<String>) = conn.query_row(
     "select id, name, hashwd, salt, email, registration_key, admin, active, 
         orgauth_token.tokendate, orgauth_token.regendate, orgauth_token.prevtoken
@@ -231,13 +233,14 @@ fn check_user(
   user: &User,
   tokendate: i64,
   token_expiration_ms: Option<i64>,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), error::Error> {
   if !user.active {
-    bail!("account is inactive")
+    Err("account is inactive".into())
   } else {
     if let Some(texp) = token_expiration_ms {
       if is_token_expired(texp, tokendate) {
-        bail!("login expired")
+        // Err(error::Error::String("login expired".to_string()))
+        return Err("login expired".into());
       }
     };
 
@@ -252,7 +255,7 @@ pub fn read_user_by_token_api(
   token: Uuid,
   token_expiration_ms: Option<i64>,
   regen_login_tokens: bool,
-) -> Result<User, Box<dyn Error>> {
+) -> Result<User, error::Error> {
   let (user, tokeninfo) = read_user_by_token(&conn, token)?;
 
   check_user(&user, tokeninfo.tokendate, token_expiration_ms)?;
@@ -289,7 +292,7 @@ fn remove_token_chain(
   conn: &Connection,
   token: &String,
   keeptoken: &String,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), error::Error> {
   let pt: Option<String> = conn.query_row(
     "select prevtoken from orgauth_token where token = ?1",
     params![token],
@@ -318,7 +321,7 @@ pub fn read_user_with_token_pageload(
   token: Uuid,
   regen_login_tokens: bool,
   token_expiration_ms: Option<i64>,
-) -> Result<User, Box<dyn Error>> {
+) -> Result<User, error::Error> {
   let tx = conn.transaction()?;
 
   let (user, tokeninfo) = read_user_by_token(&tx, token)?;
@@ -357,7 +360,7 @@ pub fn add_token(
   user: i64,
   token: Uuid,
   prevtoken: Option<Uuid>,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), error::Error> {
   let now = now()?;
   conn.execute(
     "insert into orgauth_token (user, token, tokendate, prevtoken)
@@ -377,7 +380,7 @@ pub fn mark_prevtoken(
   conn: &Connection,
   // token: Uuid,
   prevtoken: Uuid,
-) -> Result<bool, Box<dyn Error>> {
+) -> Result<bool, error::Error> {
   // set regendate to now.
   let now = now()?;
   let wat = conn.execute(
@@ -388,14 +391,11 @@ pub fn mark_prevtoken(
   match wat {
     1 => Ok(true),
     0 => Ok(false), // could mean token doesn't exist, or regendate expired.
-    x => bail!("too many records updated: {}", x),
+    x => Err(format!("too many records updated: {}", x).into()),
   }
 }
 
-pub fn purge_login_tokens(
-  conn: &Connection,
-  token_expiration_ms: i64,
-) -> Result<(), Box<dyn Error>> {
+pub fn purge_login_tokens(conn: &Connection, token_expiration_ms: i64) -> Result<(), error::Error> {
   let now = now()?;
   let expdt = now - token_expiration_ms;
 
@@ -432,10 +432,7 @@ pub fn purge_login_tokens(
   Ok(())
 }
 
-pub fn purge_email_tokens(
-  conn: &Connection,
-  token_expiration_ms: i64,
-) -> Result<(), Box<dyn Error>> {
+pub fn purge_email_tokens(conn: &Connection, token_expiration_ms: i64) -> Result<(), error::Error> {
   let now = now()?;
   let expdt = now - token_expiration_ms;
 
@@ -459,10 +456,7 @@ pub fn purge_email_tokens(
   Ok(())
 }
 
-pub fn purge_reset_tokens(
-  conn: &Connection,
-  token_expiration_ms: i64,
-) -> Result<(), Box<dyn Error>> {
+pub fn purge_reset_tokens(conn: &Connection, token_expiration_ms: i64) -> Result<(), error::Error> {
   let now = now()?;
   let expdt = now - token_expiration_ms;
 
@@ -486,10 +480,7 @@ pub fn purge_reset_tokens(
   Ok(())
 }
 
-pub fn purge_user_invites(
-  conn: &Connection,
-  token_expiration_ms: i64,
-) -> Result<(), Box<dyn Error>> {
+pub fn purge_user_invites(conn: &Connection, token_expiration_ms: i64) -> Result<(), error::Error> {
   let now = now()?;
   let expdt = now - token_expiration_ms;
 
@@ -513,7 +504,7 @@ pub fn purge_user_invites(
   Ok(())
 }
 
-pub fn purge_tokens(config: &Config) -> Result<(), Box<dyn Error>> {
+pub fn purge_tokens(config: &Config) -> Result<(), error::Error> {
   let conn = connection_open(config.db.as_path())?;
 
   if let Some(expms) = config.login_token_expiration_ms {
@@ -528,7 +519,7 @@ pub fn purge_tokens(config: &Config) -> Result<(), Box<dyn Error>> {
   Ok(())
 }
 
-pub fn update_user(conn: &Connection, user: &User) -> Result<(), Box<dyn Error>> {
+pub fn update_user(conn: &Connection, user: &User) -> Result<(), error::Error> {
   conn.execute(
     "update orgauth_user set name = ?1, hashwd = ?2, salt = ?3, email = ?4, registration_key = ?5, admin = ?6, active = ?7
            where id = ?8",
@@ -553,7 +544,7 @@ pub fn add_newemail(
   user: i64,
   token: Uuid,
   email: String,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), error::Error> {
   let now = now()?;
   conn.execute(
     "insert into orgauth_newemail (user, email, token, tokendate)
@@ -569,7 +560,7 @@ pub fn read_newemail(
   conn: &Connection,
   user: i64,
   token: Uuid,
-) -> Result<(String, i64), Box<dyn Error>> {
+) -> Result<(String, i64), error::Error> {
   let result = conn.query_row(
     "select email, tokendate from orgauth_newemail
      where user = ?1
@@ -581,7 +572,7 @@ pub fn read_newemail(
 }
 
 // email change request.
-pub fn remove_newemail(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dyn Error>> {
+pub fn remove_newemail(conn: &Connection, user: i64, token: Uuid) -> Result<(), error::Error> {
   conn.execute(
     "delete from orgauth_newemail
      where user = ?1 and token = ?2",
@@ -592,7 +583,7 @@ pub fn remove_newemail(conn: &Connection, user: i64, token: Uuid) -> Result<(), 
 }
 
 // password reset request.
-pub fn add_newpassword(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dyn Error>> {
+pub fn add_newpassword(conn: &Connection, user: i64, token: Uuid) -> Result<(), error::Error> {
   let now = now()?;
   conn.execute(
     "insert into orgauth_newpassword (user, token, tokendate)
@@ -604,7 +595,7 @@ pub fn add_newpassword(conn: &Connection, user: i64, token: Uuid) -> Result<(), 
 }
 
 // password reset request.
-pub fn read_newpassword(conn: &Connection, user: i64, token: Uuid) -> Result<i64, Box<dyn Error>> {
+pub fn read_newpassword(conn: &Connection, user: i64, token: Uuid) -> Result<i64, error::Error> {
   let result = conn.query_row(
     "select tokendate from orgauth_newpassword
      where user = ?1
@@ -616,7 +607,7 @@ pub fn read_newpassword(conn: &Connection, user: i64, token: Uuid) -> Result<i64
 }
 
 // password reset request.
-pub fn remove_newpassword(conn: &Connection, user: i64, token: Uuid) -> Result<(), Box<dyn Error>> {
+pub fn remove_newpassword(conn: &Connection, user: i64, token: Uuid) -> Result<(), error::Error> {
   conn.execute(
     "delete from orgauth_newpassword
      where user = ?1 and token = ?2",
@@ -633,7 +624,7 @@ pub fn add_userinvite(
   email: Option<String>,
   creator: i64,
   data: Option<String>,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), error::Error> {
   let now = now()?;
   conn.execute(
     "insert into orgauth_user_invite (email, token, tokendate, creator, data)
@@ -645,7 +636,7 @@ pub fn add_userinvite(
 }
 
 // email change request.
-pub fn remove_userinvite(conn: &Connection, token: &str) -> Result<(), Box<dyn Error>> {
+pub fn remove_userinvite(conn: &Connection, token: &str) -> Result<(), error::Error> {
   conn.execute(
     "delete from orgauth_user_invite
      where token = ?1",
@@ -660,7 +651,7 @@ pub fn read_userinvite(
   conn: &Connection,
   mainsite: &str,
   token: &str,
-) -> Result<Option<UserInvite>, Box<dyn Error>> {
+) -> Result<Option<UserInvite>, error::Error> {
   match conn.query_row(
     "select email, tokendate, data, creator from orgauth_user_invite
      where token = ?1",
@@ -678,7 +669,7 @@ pub fn read_userinvite(
   ) {
     Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
     Ok(v) => Ok(Some(v)),
-    Err(e) => Err(Box::new(e)),
+    Err(e) => Err(e.into()),
   }
 }
 
@@ -687,7 +678,7 @@ pub fn change_password(
   conn: &Connection,
   uid: i64,
   cp: ChangePassword,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), error::Error> {
   let mut userdata = read_user_by_id(&conn, uid)?;
   match userdata.registration_key {
     Some(_reg_key) => bail!("invalid user or password"),
@@ -720,11 +711,7 @@ pub fn change_password(
 
 // change password without requiring old password.
 // for unregistered users.
-pub fn override_password(
-  conn: &Connection,
-  uid: i64,
-  newpwd: String,
-) -> Result<(), Box<dyn Error>> {
+pub fn override_password(conn: &Connection, uid: i64, newpwd: String) -> Result<(), error::Error> {
   let mut userdata = read_user_by_id(&conn, uid)?;
   // just being cautious in limiting this to only unregistered.
   match userdata.registration_key {
@@ -751,7 +738,7 @@ pub fn change_email(
   conn: &Connection,
   uid: i64,
   cp: ChangeEmail,
-) -> Result<(String, Uuid), Box<dyn Error>> {
+) -> Result<(String, Uuid), error::Error> {
   let userdata = read_user_by_id(&conn, uid)?;
   match userdata.registration_key {
     Some(_reg_key) => bail!("invalid user or password"),
@@ -776,7 +763,7 @@ pub fn change_email(
   }
 }
 
-pub fn delete_user(conn: &Connection, uid: i64) -> Result<(), Box<dyn Error>> {
+pub fn delete_user(conn: &Connection, uid: i64) -> Result<(), error::Error> {
   info!("deleting user: {}", uid);
   conn.execute("delete from orgauth_token where user = ?1", params!(uid))?;
   conn.execute("delete from orgauth_newemail where user = ?1", params!(uid))?;
