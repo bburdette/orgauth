@@ -4,7 +4,7 @@ use crate::error;
 use crate::util::{is_token_expired, now, salt_string};
 use actix_session::Session;
 use crypto_hash::{hex_digest, Algorithm};
-use log::{error, info};
+use log::{error, info, warn};
 use rusqlite::{params, Connection};
 use simple_error::bail;
 use std::path::Path;
@@ -315,6 +315,53 @@ fn remove_token_chain(
 // Use this one when loading a page, when the token will be saved to the browser.
 // Not for api calls, where a new token would not be set.
 pub fn read_user_with_token_pageload(
+  conn: &mut Connection,
+  session: &Session,
+  token: Uuid,
+  regen_login_tokens: bool,
+  token_expiration_ms: Option<i64>,
+) -> Result<User, error::Error> {
+  for _i in 1..10 {
+    // since this ftn involves a commit, there can be
+    // a conflict with many simultaneous page loads.
+    // loop up to 10x until we finally get access.
+    match read_user_with_token_pageload_internal(
+      conn,
+      &session,
+      token,
+      regen_login_tokens,
+      token_expiration_ms,
+    ) {
+      Ok(user) => return Ok(user),
+      Err(error::Error::Rusqlite(rusqlite::Error::SqliteFailure(fe, mbstring))) => {
+        warn!("SqliteFailure: {:?}, {:?}", fe, mbstring);
+        match fe.code {
+          rusqlite::ErrorCode::DatabaseBusy => {
+            warn!("database busy sleeping 10");
+            std::thread::sleep(Duration::from_millis(10));
+            ()
+          }
+          rusqlite::ErrorCode::DatabaseLocked => {
+            warn!("database locked sleeping 10");
+            std::thread::sleep(Duration::from_millis(10));
+            ()
+          }
+          _ => return Err(rusqlite::Error::SqliteFailure(fe, mbstring).into()),
+        }
+      }
+      Err(e) => {
+        error!("login_data_errror {:?}, token: {:?}", e, token);
+        return Err(e.into());
+      }
+    }
+  }
+
+  Err("database busy 10x".into())
+}
+
+// Use this one when loading a page, when the token will be saved to the browser.
+// Not for api calls, where a new token would not be set.
+fn read_user_with_token_pageload_internal(
   conn: &mut Connection,
   session: &Session,
   token: Uuid,
