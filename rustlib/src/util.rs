@@ -2,7 +2,6 @@ use crate::error;
 use rand;
 use rand::Rng;
 use std::convert::TryInto;
-use std::error::Error;
 use std::fs::File;
 use std::io::Read;
 use std::io::Write;

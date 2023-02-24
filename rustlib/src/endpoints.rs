@@ -12,7 +12,6 @@ use actix_web::{HttpRequest, HttpResponse};
 use crypto_hash::{hex_digest, Algorithm};
 use log::{error, info, warn};
 use rusqlite::{params, Connection};
-use std::error::Error;
 use std::str::FromStr;
 use util::now;
 use uuid::Uuid;

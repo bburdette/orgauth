@@ -2,7 +2,6 @@ use crate::error;
 use barrel::backend::Sqlite;
 use barrel::{types, Migration};
 use rusqlite::{params, Connection};
-use std::error::Error;
 use std::path::Path;
 
 pub fn udpate1(dbfile: &Path) -> Result<(), error::Error> {

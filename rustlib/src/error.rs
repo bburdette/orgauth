@@ -3,15 +3,8 @@ use lettre;
 use lettre::smtp::error as lse;
 use lettre_email;
 use rusqlite;
-use serde_derive::{Deserialize, Serialize};
 use serde_json;
-use std::convert;
-use std::error;
 use std::fmt;
-use std::io;
-use std::path::PathBuf;
-use std::time;
-use uuid::Uuid;
 
 pub enum Error {
   Rusqlite(rusqlite::Error),
@@ -116,8 +109,3 @@ impl From<std::io::Error> for Error {
     Error::IoError(e)
   }
 }
-// impl From<std::convert::TryInto<i64>::Error> for Error {
-//   fn from(e: std::convert::TryInto<i64>::Error) -> Self {
-//     Error::TryIntoError(e)
-//   }
-// }

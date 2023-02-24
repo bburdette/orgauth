@@ -7,7 +7,6 @@ use crypto_hash::{hex_digest, Algorithm};
 use log::{error, info};
 use rusqlite::{params, Connection};
 use simple_error::bail;
-use std::error::Error;
 use std::path::Path;
 use std::time::Duration;
 use uuid::Uuid;
