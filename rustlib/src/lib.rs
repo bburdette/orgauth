@@ -4,6 +4,7 @@ pub mod data;
 pub mod dbfun;
 pub mod email;
 pub mod endpoints;
+pub mod error;
 pub mod migrations;
 pub mod util;
 

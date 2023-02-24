@@ -3,7 +3,8 @@ use lettre::smtp::response::Response;
 use lettre::{SmtpClient, SmtpTransport, Transport};
 use lettre_email::EmailBuilder;
 use log::info;
-use std::error::Error;
+// use std::error;
+use crate::error;
 
 pub fn send_newemail_confirmation(
   appname: &str,
@@ -12,7 +13,7 @@ pub fn send_newemail_confirmation(
   email: &str,
   uid: &str,
   newemail_token: &str,
-) -> Result<Response, Box<dyn Error>> {
+) -> Result<Response, error::Error> {
   info!("Sending email change confirmation for user: {}", uid);
   let email = EmailBuilder::new()
     .from(format!("no-reply@{}", domain).to_string())
@@ -52,7 +53,7 @@ pub fn send_registration(
   email: &str,
   uid: &str,
   reg_id: &str,
-) -> Result<Response, Box<dyn Error>> {
+) -> Result<Response, error::Error> {
   info!(
     "Sending registration email for user: {}, email: {}",
     uid, email
@@ -95,7 +96,7 @@ pub fn send_reset(
   email: &str,
   username: &str,
   reset_id: &str,
-) -> Result<Response, Box<dyn Error>> {
+) -> Result<Response, error::Error> {
   info!("Sending reset email for user: {}", username);
 
   let email = EmailBuilder::new()
@@ -136,7 +137,7 @@ pub fn send_registration_notification(
   email: &str,
   uid: &str,
   _reg_id: &str,
-) -> Result<Response, Box<dyn Error>> {
+) -> Result<Response, error::Error> {
   info!("sending registration notification to admin!");
   let email = EmailBuilder::new()
     .from(format!("no-reply@{}", domain).to_string())
@@ -162,7 +163,7 @@ pub fn send_rsvp_notification(
   adminemail: &str,
   email: &str,
   uid: &str,
-) -> Result<Response, Box<dyn Error>> {
+) -> Result<Response, error::Error> {
   info!("sending rsvp notification to admin!");
   let email = EmailBuilder::new()
     .from(format!("no-reply@{}", domain).to_string())

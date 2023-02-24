@@ -1,10 +1,10 @@
+use crate::error;
 use barrel::backend::Sqlite;
 use barrel::{types, Migration};
 use rusqlite::{params, Connection};
-use std::error::Error;
 use std::path::Path;
 
-pub fn udpate1(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+pub fn udpate1(dbfile: &Path) -> Result<(), error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
   let mut m = Migration::new();
@@ -92,7 +92,7 @@ pub fn udpate1(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   Ok(())
 }
 
-pub fn udpate2(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+pub fn udpate2(dbfile: &Path) -> Result<(), error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
   let mut m1 = Migration::new();
@@ -157,7 +157,7 @@ pub fn udpate2(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   Ok(())
 }
 
-pub fn udpate3(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+pub fn udpate3(dbfile: &Path) -> Result<(), error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
   let mut m = Migration::new();
@@ -177,7 +177,7 @@ pub fn udpate3(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   Ok(())
 }
 
-pub fn udpate4(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+pub fn udpate4(dbfile: &Path) -> Result<(), error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
   let mut m = Migration::new();
@@ -210,7 +210,7 @@ pub fn udpate4(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   Ok(())
 }
 
-pub fn udpate5(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+pub fn udpate5(dbfile: &Path) -> Result<(), error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
 
@@ -219,7 +219,7 @@ pub fn udpate5(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   Ok(())
 }
 
-pub fn udpate6(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+pub fn udpate6(dbfile: &Path) -> Result<(), error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
 
@@ -235,7 +235,7 @@ pub fn udpate6(dbfile: &Path) -> Result<(), Box<dyn Error>> {
   Ok(())
 }
 
-pub fn udpate7(dbfile: &Path) -> Result<(), Box<dyn Error>> {
+pub fn udpate7(dbfile: &Path) -> Result<(), error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
 
