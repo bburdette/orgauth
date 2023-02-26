@@ -239,7 +239,7 @@ loginView style model =
         ]
         [ text <| "welcome to " ++ model.appname ++ "!"
         , text <| "log in below:"
-        , Input.text [ width fill ]
+        , Input.username [ width fill ]
             { onChange = IdUpdate
             , text = model.userId
             , placeholder = Nothing
@@ -289,19 +289,19 @@ registrationView style model =
     column [ Background.color (Common.navbarColor 1), width fill, height fill, spacing style.defaultSpacing, padding 8 ]
         [ text <| "welcome to " ++ model.appname ++ "!"
         , text <| "register your new account below:"
-        , Input.text []
+        , Input.email []
             { onChange = EmailUpdate
             , text = model.email
             , placeholder = Nothing
             , label = Input.labelLeft [] <| text "email:"
             }
-        , Input.text []
+        , Input.username []
             { onChange = IdUpdate
             , text = model.userId
             , placeholder = Nothing
             , label = Input.labelLeft [] <| text "user id:"
             }
-        , Input.currentPassword []
+        , Input.newPassword []
             { onChange = PasswordUpdate
             , text = model.password
             , placeholder = Nothing
