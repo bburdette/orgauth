@@ -392,7 +392,7 @@ fn read_user_with_token_pageload_internal(
       mark_prevtoken(&tx, token)?;
       let new_token = Uuid::new_v4();
       add_token(&tx, user.id, new_token, Some(token))?;
-      session.set("token", new_token)?;
+      session.insert("token", new_token)?;
     }
   }
 

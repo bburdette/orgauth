@@ -44,7 +44,7 @@ pub fn log_user_in(
   let token = Uuid::new_v4();
   // new token has no "prev"
   dbfun::add_token(&conn, uid, token, None)?;
-  session.set("token", token)?;
+  session.insert("token", token)?;
 
   Ok(WhatMessage {
     what: "logged in".to_string(),

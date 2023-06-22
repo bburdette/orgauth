@@ -1,3 +1,4 @@
+use actix_session;
 use actix_web::error as awe;
 use lettre;
 use lettre::smtp::error as lse;
@@ -107,5 +108,15 @@ impl From<lse::Error> for Error {
 impl From<std::io::Error> for Error {
   fn from(e: std::io::Error) -> Self {
     Error::IoError(e)
+  }
+}
+impl From<actix_session::SessionGetError> for Error {
+  fn from(e: actix_session::SessionGetError) -> Self {
+    Error::String(e.to_string())
+  }
+}
+impl From<actix_session::SessionInsertError> for Error {
+  fn from(e: actix_session::SessionInsertError) -> Self {
+    Error::String(e.to_string())
   }
 }
