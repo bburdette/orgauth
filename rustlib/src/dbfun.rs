@@ -350,7 +350,7 @@ pub fn read_user_with_token_pageload(
         }
       }
       Err(e) => {
-        error!("login_data_errror {:?}", e);
+        error!("login_data_error {:?}", e);
         return Err(e.into());
       }
     }
