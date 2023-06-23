@@ -1,10 +1,7 @@
-use crate::util;
-use lettre::smtp::response::Response;
-use lettre::{SmtpClient, SmtpTransport, Transport};
-use lettre_email::EmailBuilder;
-use log::info;
-// use std::error;
 use crate::error;
+use crate::util;
+use lettre::{transport::smtp::response::Response, Message, SmtpTransport, Transport};
+use log::info;
 
 pub fn send_newemail_confirmation(
   appname: &str,
@@ -15,19 +12,15 @@ pub fn send_newemail_confirmation(
   newemail_token: &str,
 ) -> Result<Response, error::Error> {
   info!("Sending email change confirmation for user: {}", uid);
-  let email = EmailBuilder::new()
-    .from(format!("no-reply@{}", domain).to_string())
-    .to(email)
+  let email = Message::builder()
+    .from(format!("no-reply@{}", domain).parse()?)
+    .to(email.parse()?)
     .subject(format!("change {} email", appname).to_string())
-    .text(
-      (format!(
-        "Click the link to change to your new email, {} user '{}'!\n\
+    .body(format!(
+      "Click the link to change to your new email, {} user '{}'!\n\
        {}/newemail/{}/{}",
-        appname, uid, mainsite, uid, newemail_token
-      ))
-      .as_str(),
-    )
-    .build()?;
+      appname, uid, mainsite, uid, newemail_token
+    ))?;
 
   // to help with registration for desktop use, or if the server is barred from sending email.
   util::write_string(
@@ -41,9 +34,9 @@ pub fn send_newemail_confirmation(
     .as_str(),
   )?;
 
-  let mut mailer = SmtpTransport::new(SmtpClient::new_unencrypted_localhost()?);
+  let mailer = SmtpTransport::unencrypted_localhost();
   // Send the email
-  mailer.send(email.into()).map_err(|e| e.into())
+  mailer.send(&email).map_err(|e| e.into())
 }
 
 pub fn send_registration(
@@ -58,19 +51,15 @@ pub fn send_registration(
     "Sending registration email for user: {}, email: {}",
     uid, email
   );
-  let email = EmailBuilder::new()
-    .from(format!("no-reply@{}", domain).to_string())
-    .to(email)
+  let email = Message::builder()
+    .from(format!("no-reply@{}", domain).parse()?)
+    .to(email.parse()?)
     .subject(format!("{} registration", appname).to_string())
-    .text(
-      (format!(
-        "Click the link to complete registration, {} user '{}'!\n\
+    .body(format!(
+      "Click the link to complete registration, {} user '{}'!\n\
        {}/register/{}/{}",
-        appname, uid, mainsite, uid, reg_id
-      ))
-      .as_str(),
-    )
-    .build()?;
+      appname, uid, mainsite, uid, reg_id
+    ))?;
 
   // to help with registration for desktop use, or if the server is barred from sending email.
   util::write_string(
@@ -84,9 +73,9 @@ pub fn send_registration(
     .as_str(),
   )?;
 
-  let mut mailer = SmtpTransport::new(SmtpClient::new_unencrypted_localhost()?);
+  let mailer = SmtpTransport::unencrypted_localhost();
   // Send the email
-  mailer.send(email.into()).map_err(|e| e.into())
+  mailer.send(&email).map_err(|e| e.into())
 }
 
 pub fn send_reset(
@@ -99,19 +88,15 @@ pub fn send_reset(
 ) -> Result<Response, error::Error> {
   info!("Sending reset email for user: {}", username);
 
-  let email = EmailBuilder::new()
-    .from(format!("no-reply@{}", domain).to_string())
-    .to(email)
+  let email = Message::builder()
+    .from(format!("no-reply@{}", domain).parse()?)
+    .to(email.parse()?)
     .subject(format!("{} password reset", appname).to_string())
-    .text(
-      (format!(
-        "Click the link to complete password reset, {} user '{}'!\n\
+    .body(format!(
+      "Click the link to complete password reset, {} user '{}'!\n\
        {}/reset/{}/{}",
-        appname, username, mainsite, username, reset_id
-      ))
-      .as_str(),
-    )
-    .build()?;
+      appname, username, mainsite, username, reset_id
+    ))?;
 
   // to help with reset for desktop use, or if the server is barred from sending email.
   util::write_string(
@@ -125,9 +110,9 @@ pub fn send_reset(
     .as_str(),
   )?;
 
-  let mut mailer = SmtpTransport::new(SmtpClient::new_unencrypted_localhost()?);
+  let mailer = SmtpTransport::unencrypted_localhost();
   // Send the email
-  mailer.send(email.into()).map_err(|e| e.into())
+  mailer.send(&email).map_err(|e| e.into())
 }
 
 pub fn send_registration_notification(
@@ -139,22 +124,18 @@ pub fn send_registration_notification(
   _reg_id: &str,
 ) -> Result<Response, error::Error> {
   info!("sending registration notification to admin!");
-  let email = EmailBuilder::new()
-    .from(format!("no-reply@{}", domain).to_string())
-    .to(adminemail)
+  let email = Message::builder()
+    .from(format!("no-reply@{}", domain).parse()?)
+    .to(adminemail.parse()?)
     .subject(format!("{} new registration, uid: {}", appname, uid).to_string())
-    .text(
-      (format!(
-        "Someones trying to register for {}! {}, {}",
-        appname, uid, email
-      ))
-      .as_str(),
-    )
-    .build()?;
+    .body(format!(
+      "Someones trying to register for {}! {}, {}",
+      appname, uid, email
+    ))?;
 
-  let mut mailer = SmtpTransport::new(SmtpClient::new_unencrypted_localhost()?);
+  let mailer = SmtpTransport::unencrypted_localhost();
   // Send the email
-  mailer.send(email.into()).map_err(|e| e.into())
+  mailer.send(&email).map_err(|e| e.into())
 }
 
 pub fn send_rsvp_notification(
@@ -165,20 +146,16 @@ pub fn send_rsvp_notification(
   uid: &str,
 ) -> Result<Response, error::Error> {
   info!("sending rsvp notification to admin!");
-  let email = EmailBuilder::new()
-    .from(format!("no-reply@{}", domain).to_string())
-    .to(adminemail)
+  let email = Message::builder()
+    .from(format!("no-reply@{}", domain).parse()?)
+    .to(adminemail.parse()?)
     .subject(format!("{} new rsvp, uid: {}", appname, uid).to_string())
-    .text(
-      (format!(
-        "Someones has rsvped to a new-user invite for {}! {}, {}",
-        appname, uid, email
-      ))
-      .as_str(),
-    )
-    .build()?;
+    .body(format!(
+      "Someones has rsvped to a new-user invite for {}! {}, {}",
+      appname, uid, email
+    ))?;
 
-  let mut mailer = SmtpTransport::new(SmtpClient::new_unencrypted_localhost()?);
+  let mailer = SmtpTransport::unencrypted_localhost();
   // Send the email
-  mailer.send(email.into()).map_err(|e| e.into())
+  mailer.send(&email).map_err(|e| e.into())
 }
