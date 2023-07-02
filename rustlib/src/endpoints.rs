@@ -32,20 +32,27 @@ pub struct Callbacks {
 }
 
 pub trait Tokener {
-  fn set(&self, uuid: Uuid);
-  fn remove(&self);
+  fn set(&mut self, uuid: Uuid);
+  fn remove(&mut self);
   fn get(&self) -> Option<Uuid>;
 }
 
-struct ActixTokener {
-  session: Session,
+// pub struct ActixTokener<'a> {
+//   session: &'a mut Session,
+// }
+
+// pub struct ActixTokener {
+//   session: &Session,
+// }
+pub struct ActixTokener<'a> {
+  pub session: &'a Session,
 }
 
-impl Tokener for ActixTokener {
-  fn set(&self, uuid: Uuid) {
+impl Tokener for ActixTokener<'_> {
+  fn set(&mut self, uuid: Uuid) {
     self.session.insert("token", uuid);
   }
-  fn remove(&self) {
+  fn remove(&mut self) {
     self.session.remove("token");
   }
   fn get(&self) -> Option<Uuid> {
@@ -53,8 +60,24 @@ impl Tokener for ActixTokener {
   }
 }
 
+pub struct UuidTokener {
+  pub uuid: Option<Uuid>,
+}
+
+impl Tokener for UuidTokener {
+  fn set(&mut self, uuid: Uuid) {
+    self.uuid = Some(uuid);
+  }
+  fn remove(&mut self) {
+    self.uuid = None;
+  }
+  fn get(&self) -> Option<Uuid> {
+    self.uuid
+  }
+}
+
 pub fn log_user_in(
-  session: &Session,
+  tokener: &mut dyn Tokener,
   callbacks: &mut Callbacks,
   conn: &Connection,
   uid: i64,
@@ -66,7 +89,7 @@ pub fn log_user_in(
   let token = Uuid::new_v4();
   // new token has no "prev"
   dbfun::add_token(&conn, uid, token, None)?;
-  session.insert("token", token)?;
+  tokener.set(token);
 
   Ok(WhatMessage {
     what: "logged in".to_string(),
@@ -75,7 +98,7 @@ pub fn log_user_in(
 }
 
 pub fn user_interface(
-  session: &Session,
+  tokener: &mut dyn Tokener,
   config: &Config,
   callbacks: &mut Callbacks,
   msg: WhatMessage,
@@ -256,7 +279,7 @@ pub fn user_interface(
           // delete the invite.
           dbfun::remove_userinvite(&conn, &rsvp.invite.as_str())?;
           // log in.
-          log_user_in(session, callbacks, &conn, userdata.id)
+          log_user_in(tokener, callbacks, &conn, userdata.id)
         }
       }
       Err(_) => {
@@ -315,7 +338,7 @@ pub fn user_interface(
         }
 
         // respond with login.
-        log_user_in(session, callbacks, &conn, uid)
+        log_user_in(tokener, callbacks, &conn, uid)
       }
     }
   } else if msg.what == "ReadInvite" {
@@ -354,7 +377,7 @@ pub fn user_interface(
               data: Option::None,
             })
           } else {
-            log_user_in(session, callbacks, &conn, userdata.id)
+            log_user_in(tokener, callbacks, &conn, userdata.id)
           }
         } else {
           Ok(WhatMessage {
@@ -365,7 +388,7 @@ pub fn user_interface(
       }
     }
   } else if msg.what == "logout" {
-    session.remove("token");
+    tokener.remove();
 
     Ok(WhatMessage {
       what: "logged out".to_string(),
@@ -439,7 +462,7 @@ pub fn user_interface(
     }
   } else if msg.what == "ChangePassword" || msg.what == "ChangeEmail" || msg.what == "GetInvite" {
     // are we logged in?
-    match session.get::<Uuid>("token")? {
+    match tokener.get() {
       None => Ok(WhatMessage {
         what: "not logged in".to_string(),
         data: Option::None,
@@ -535,12 +558,14 @@ pub fn user_interface_loggedin(
 }
 
 pub fn admin_interface_check(
-  session: &Session,
+  tokener: &mut dyn Tokener,
+
   config: &Config,
   callbacks: &mut Callbacks,
   msg: WhatMessage,
 ) -> Result<WhatMessage, error::Error> {
-  match session.get::<Uuid>("token")? {
+  // match session.get::<Uuid>("token")? {
+  match tokener.get() {
     None => Ok(WhatMessage {
       what: "not logged in".to_string(),
       data: Some(serde_json::Value::Null),
