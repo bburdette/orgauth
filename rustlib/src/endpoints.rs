@@ -31,6 +31,28 @@ pub struct Callbacks {
   pub on_delete_user: Box<dyn FnMut(&Connection, i64) -> Result<bool, error::Error>>,
 }
 
+pub trait Tokener {
+  fn set(&self, uuid: Uuid);
+  fn remove(&self);
+  fn get(&self) -> Option<Uuid>;
+}
+
+struct ActixTokener {
+  session: Session,
+}
+
+impl Tokener for ActixTokener {
+  fn set(&self, uuid: Uuid) {
+    self.session.insert("token", uuid);
+  }
+  fn remove(&self) {
+    self.session.remove("token");
+  }
+  fn get(&self) -> Option<Uuid> {
+    self.session.get("token").unwrap_or(None)
+  }
+}
+
 pub fn log_user_in(
   session: &Session,
   callbacks: &mut Callbacks,
