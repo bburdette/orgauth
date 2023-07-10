@@ -9,9 +9,10 @@ use crate::util;
 use crate::util::is_token_expired;
 use actix_session::Session;
 use actix_web::{HttpRequest, HttpResponse};
-use crypto_hash::{hex_digest, Algorithm};
+// use crypto_hash::{hex_digest, Algorithm};
 use log::{error, info, warn};
 use rusqlite::{params, Connection};
+use sha256;
 use std::str::FromStr;
 use util::now;
 use uuid::Uuid;
@@ -128,8 +129,7 @@ pub fn user_interface(
             user.email = rd.email;
 
             dbfun::update_user(&conn, &user)?;
-            if hex_digest(
-              Algorithm::SHA256,
+            if sha256::digest(
               (rd.pwd.clone() + user.salt.as_str())
                 .into_bytes()
                 .as_slice(),
@@ -245,8 +245,7 @@ pub fn user_interface(
     match dbfun::read_user_by_name(&conn, rsvp.uid.as_str()) {
       Ok(mut userdata) => {
         // password matches?
-        if hex_digest(
-          Algorithm::SHA256,
+        if sha256::digest(
           (rsvp.pwd.clone() + userdata.salt.as_str())
             .into_bytes()
             .as_slice(),
@@ -364,8 +363,7 @@ pub fn user_interface(
       }),
       None => {
         if userdata.active {
-          if hex_digest(
-            Algorithm::SHA256,
+          if sha256::digest(
             (login.pwd.clone() + userdata.salt.as_str())
               .into_bytes()
               .as_slice(),
@@ -445,8 +443,7 @@ pub fn user_interface(
             data: Option::None,
           })
         } else {
-          userdata.hashwd = hex_digest(
-            Algorithm::SHA256,
+          userdata.hashwd = sha256::digest(
             (set_password.newpwd + userdata.salt.as_str())
               .into_bytes()
               .as_slice(),
