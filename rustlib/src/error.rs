@@ -1,7 +1,7 @@
 use actix_session;
 use actix_web::error as awe;
-use lettre;
-use lettre::transport::smtp as lts;
+// use lettre;
+// use lettre::transport::smtp as lts;
 use rusqlite;
 use serde_json;
 use std::fmt;
@@ -12,9 +12,9 @@ pub enum Error {
   String(String),
   ActixError(awe::Error),
   SerdeJson(serde_json::Error),
-  LettreError(lettre::error::Error),
-  LettreSmtpError(lts::Error),
-  AddressError(lettre::address::AddressError),
+  // LettreError(lettre::error::Error),
+  // LettreSmtpError(lts::Error),
+  //   AddressError(lettre::address::AddressError),
   IoError(std::io::Error),
 }
 
@@ -32,9 +32,9 @@ impl fmt::Display for Error {
       Error::String(e) => write!(f, "{}", e),
       Error::ActixError(e) => write!(f, "{}", e),
       Error::SerdeJson(e) => write!(f, "{}", e),
-      Error::LettreError(e) => write!(f, "{}", e),
-      Error::LettreSmtpError(e) => write!(f, "{}", e),
-      Error::AddressError(e) => write!(f, "{}", e),
+      // Error::LettreError(e) => write!(f, "{}", e),
+      // Error::LettreSmtpError(e) => write!(f, "{}", e),
+      //       Error::AddressError(e) => write!(f, "{}", e),
       Error::IoError(e) => write!(f, "{}", e),
     }
   }
@@ -48,9 +48,9 @@ impl fmt::Debug for Error {
       Error::String(e) => write!(f, "{}", e),
       Error::ActixError(e) => write!(f, "{}", e),
       Error::SerdeJson(e) => write!(f, "{}", e),
-      Error::LettreError(e) => write!(f, "{}", e),
-      Error::LettreSmtpError(e) => write!(f, "{}", e),
-      Error::AddressError(e) => write!(f, "{}", e),
+      // Error::LettreError(e) => write!(f, "{}", e),
+      // Error::LettreSmtpError(e) => write!(f, "{}", e),
+      //       Error::AddressError(e) => write!(f, "{}", e),
       Error::IoError(e) => write!(f, "{}", e),
     }
   }
@@ -92,23 +92,23 @@ impl From<serde_json::Error> for Error {
   }
 }
 
-impl From<lettre::error::Error> for Error {
-  fn from(e: lettre::error::Error) -> Self {
-    Error::LettreError(e)
-  }
-}
+// impl From<lettre::error::Error> for Error {
+//   fn from(e: lettre::error::Error) -> Self {
+//     Error::LettreError(e)
+//   }
+// }
 
-impl From<lettre::address::AddressError> for Error {
-  fn from(e: lettre::address::AddressError) -> Self {
-    Error::AddressError(e)
-  }
-}
+// impl From<lettre::address::AddressError> for Error {
+//   fn from(e: lettre::address::AddressError) -> Self {
+//     Error::AddressError(e)
+//   }
+// }
 
-impl From<lts::Error> for Error {
-  fn from(e: lts::Error) -> Self {
-    Error::LettreSmtpError(e)
-  }
-}
+// impl From<lts::Error> for Error {
+//   fn from(e: lts::Error) -> Self {
+//     Error::LettreSmtpError(e)
+//   }
+// }
 
 impl From<std::io::Error> for Error {
   fn from(e: std::io::Error) -> Self {

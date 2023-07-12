@@ -3,13 +3,12 @@ use crate::data::{
   ResetPassword, SetPassword, User, UserInvite, WhatMessage, RSVP,
 };
 use crate::dbfun;
-use crate::email;
+// use crate::email;
 use crate::error;
 use crate::util;
 use crate::util::is_token_expired;
 use actix_session::Session;
 use actix_web::{HttpRequest, HttpResponse};
-// use crypto_hash::{hex_digest, Algorithm};
 use log::{error, info, warn};
 use rusqlite::{params, Connection};
 use sha256;
@@ -140,24 +139,24 @@ pub fn user_interface(
             }
 
             // send a registration email.
-            email::send_registration(
-              config.appname.as_str(),
-              config.emaildomain.as_str(),
-              config.mainsite.as_str(),
-              user.email.as_str(),
-              rd.uid.as_str(),
-              reg_key.as_str(),
-            )?;
+            // email::send_registration(
+            //   config.appname.as_str(),
+            //   config.emaildomain.as_str(),
+            //   config.mainsite.as_str(),
+            //   user.email.as_str(),
+            //   rd.uid.as_str(),
+            //   reg_key.as_str(),
+            // )?;
 
             // notify the admin.
-            email::send_registration_notification(
-              config.appname.as_str(),
-              config.emaildomain.as_str(),
-              config.admin_email.as_str(),
-              user.email.as_str(),
-              rd.uid.as_str(),
-              reg_key.as_str(),
-            )?;
+            // email::send_registration_notification(
+            //   config.appname.as_str(),
+            //   config.emaildomain.as_str(),
+            //   config.admin_email.as_str(),
+            //   user.email.as_str(),
+            //   rd.uid.as_str(),
+            //   reg_key.as_str(),
+            // )?;
 
             Ok(WhatMessage {
               what: "registration email sent".to_string(),
@@ -204,24 +203,24 @@ pub fn user_interface(
         )?;
 
         // send a registration email.
-        email::send_registration(
-          config.appname.as_str(),
-          config.emaildomain.as_str(),
-          config.mainsite.as_str(),
-          rd.email.as_str(),
-          rd.uid.as_str(),
-          registration_key.as_str(),
-        )?;
+        // email::send_registration(
+        //   config.appname.as_str(),
+        //   config.emaildomain.as_str(),
+        //   config.mainsite.as_str(),
+        //   rd.email.as_str(),
+        //   rd.uid.as_str(),
+        //   registration_key.as_str(),
+        // )?;
 
-        // notify the admin.
-        email::send_registration_notification(
-          config.appname.as_str(),
-          config.emaildomain.as_str(),
-          config.admin_email.as_str(),
-          rd.email.as_str(),
-          rd.uid.as_str(),
-          registration_key.as_str(),
-        )?;
+        // // notify the admin.
+        // email::send_registration_notification(
+        //   config.appname.as_str(),
+        //   config.emaildomain.as_str(),
+        //   config.admin_email.as_str(),
+        //   rd.email.as_str(),
+        //   rd.uid.as_str(),
+        //   registration_key.as_str(),
+        // )?;
 
         Ok(WhatMessage {
           what: "registration email sent".to_string(),
@@ -319,22 +318,22 @@ pub fn user_interface(
         dbfun::remove_userinvite(&conn, &rsvp.invite.as_str())?;
 
         // notify the admin.
-        match email::send_rsvp_notification(
-          config.appname.as_str(),
-          config.emaildomain.as_str(),
-          config.admin_email.as_str(),
-          rsvp.email.as_str(),
-          rsvp.uid.as_str(),
-        ) {
-          Ok(_) => (),
-          Err(e) => {
-            // warn if error sending email; but keep on with new user login.
-            warn!(
-              "error sending rsvp notification for user: {}, {}",
-              rd.uid, e
-            )
-          }
-        }
+        // match email::send_rsvp_notification(
+        //   config.appname.as_str(),
+        //   config.emaildomain.as_str(),
+        //   config.admin_email.as_str(),
+        //   rsvp.email.as_str(),
+        //   rsvp.uid.as_str(),
+        // ) {
+        //   Ok(_) => (),
+        //   Err(e) => {
+        //     // warn if error sending email; but keep on with new user login.
+        //     warn!(
+        //       "error sending rsvp notification for user: {}, {}",
+        //       rd.uid, e
+        //     )
+        //   }
+        // }
 
         // respond with login.
         log_user_in(tokener, callbacks, &conn, uid)
@@ -409,14 +408,14 @@ pub fn user_interface(
         dbfun::add_newpassword(&conn, userdata.id, reset_key.clone())?;
 
         // send reset email.
-        email::send_reset(
-          config.appname.as_str(),
-          config.emaildomain.as_str(),
-          config.mainsite.as_str(),
-          userdata.email.as_str(),
-          userdata.name.as_str(),
-          reset_key.to_string().as_str(),
-        )?;
+        // email::send_reset(
+        //   config.appname.as_str(),
+        //   config.emaildomain.as_str(),
+        //   config.mainsite.as_str(),
+        //   userdata.email.as_str(),
+        //   userdata.name.as_str(),
+        //   reset_key.to_string().as_str(),
+        // )?;
 
         Ok(WhatMessage {
           what: "resetpasswordack".to_string(),
@@ -508,14 +507,14 @@ pub fn user_interface_loggedin(
     let conn = dbfun::connection_open(config.db.as_path())?;
     let (name, token) = dbfun::change_email(&conn, uid, cp.clone())?;
     // send a confirmation email.
-    email::send_newemail_confirmation(
-      config.appname.as_str(),
-      config.emaildomain.as_str(),
-      config.mainsite.as_str(),
-      cp.email.as_str(),
-      name.as_str(),
-      token.to_string().as_str(),
-    )?;
+    // email::send_newemail_confirmation(
+    //   config.appname.as_str(),
+    //   config.emaildomain.as_str(),
+    //   config.mainsite.as_str(),
+    //   cp.email.as_str(),
+    //   name.as_str(),
+    //   token.to_string().as_str(),
+    // )?;
 
     Ok(WhatMessage {
       what: "changed email".to_string(),
