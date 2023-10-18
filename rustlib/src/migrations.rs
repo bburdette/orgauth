@@ -95,6 +95,7 @@ pub fn udpate1(dbfile: &Path) -> Result<(), error::Error> {
 pub fn udpate2(dbfile: &Path) -> Result<(), error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
+  conn.execute("PRAGMA foreign_keys = false;", params![])?;
   let mut m1 = Migration::new();
 
   // temp table for user data.
@@ -160,6 +161,7 @@ pub fn udpate2(dbfile: &Path) -> Result<(), error::Error> {
 pub fn udpate3(dbfile: &Path) -> Result<(), error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
+  conn.execute("PRAGMA foreign_keys = false;", params![])?;
   let mut m = Migration::new();
 
   m.create_table("orgauth_user_invite", |t| {
@@ -180,6 +182,7 @@ pub fn udpate3(dbfile: &Path) -> Result<(), error::Error> {
 pub fn udpate4(dbfile: &Path) -> Result<(), error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
+  conn.execute("PRAGMA foreign_keys = false;", params![])?;
   let mut m = Migration::new();
 
   // eaiser to drop the table.  data is lost though.
@@ -213,6 +216,7 @@ pub fn udpate4(dbfile: &Path) -> Result<(), error::Error> {
 pub fn udpate5(dbfile: &Path) -> Result<(), error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
+  conn.execute("PRAGMA foreign_keys = false;", params![])?;
 
   conn.execute("update orgauth_user set name = lower(name)", params![])?;
 
@@ -222,6 +226,7 @@ pub fn udpate5(dbfile: &Path) -> Result<(), error::Error> {
 pub fn udpate6(dbfile: &Path) -> Result<(), error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
+  conn.execute("PRAGMA foreign_keys = false;", params![])?;
 
   let mut m = Migration::new();
 
@@ -238,6 +243,7 @@ pub fn udpate6(dbfile: &Path) -> Result<(), error::Error> {
 pub fn udpate7(dbfile: &Path) -> Result<(), error::Error> {
   // db connection without foreign key checking.
   let conn = Connection::open(dbfile)?;
+  conn.execute("PRAGMA foreign_keys = false;", params![])?;
 
   let mut m = Migration::new();
 
