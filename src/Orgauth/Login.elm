@@ -289,12 +289,6 @@ registrationView style model =
     column [ Background.color (Common.navbarColor 1), width fill, height fill, spacing style.defaultSpacing, padding 8 ]
         [ text <| "welcome to " ++ model.appname ++ "!"
         , text <| "register your new account below:"
-        , Input.email []
-            { onChange = EmailUpdate
-            , text = model.email
-            , placeholder = Nothing
-            , label = Input.labelLeft [] <| text "email:"
-            }
         , Input.username []
             { onChange = IdUpdate
             , text = model.userId
@@ -307,6 +301,12 @@ registrationView style model =
             , placeholder = Nothing
             , label = Input.labelLeft [] <| text "password: "
             , show = False
+            }
+        , Input.email []
+            { onChange = EmailUpdate
+            , text = model.email
+            , placeholder = Nothing
+            , label = Input.labelLeft [] <| text "email:"
             }
         , Input.text []
             { onChange = CaptchaUpdate

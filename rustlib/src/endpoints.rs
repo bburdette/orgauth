@@ -94,15 +94,18 @@ pub fn user_interface(
               dbfun::override_password(&conn, user.id, rd.pwd)?;
             }
 
-            // send a registration email.
-            email::send_registration(
-              config.appname.as_str(),
-              config.emaildomain.as_str(),
-              config.mainsite.as_str(),
-              user.email.as_str(),
-              rd.uid.as_str(),
-              reg_key.as_str(),
-            )?;
+            if config.send_registration_email {
+              // send a registration email.
+              email::send_registration(
+                config.appname.as_str(),
+                config.emaildomain.as_str(),
+                config.mainsite.as_str(),
+                user.email.as_str(),
+                rd.uid.as_str(),
+                reg_key.as_str(),
+              )?;
+            } else {
+            }
 
             // notify the admin.
             email::send_registration_notification(
