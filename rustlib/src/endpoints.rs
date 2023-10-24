@@ -138,30 +138,34 @@ pub fn user_interface(
               dbfun::override_password(&conn, user.id, rd.pwd)?;
             }
 
-            // send a registration email.
-            // email::send_registration(
-            //   config.appname.as_str(),
-            //   config.emaildomain.as_str(),
-            //   config.mainsite.as_str(),
-            //   user.email.as_str(),
-            //   rd.uid.as_str(),
-            //   reg_key.as_str(),
-            // )?;
+            // if config.send_registration_email {
+            //   // send a registration email.
+            //   email::send_registration(
+            //     config.appname.as_str(),
+            //     config.emaildomain.as_str(),
+            //     config.mainsite.as_str(),
+            //     user.email.as_str(),
+            //     rd.uid.as_str(),
+            //     reg_key.as_str(),
+            //   )?;
+            //   // notify the admin.
+            //   email::send_registration_notification(
+            //     config.appname.as_str(),
+            //     config.emaildomain.as_str(),
+            //     config.admin_email.as_str(),
+            //     user.email.as_str(),
+            //     rd.uid.as_str(),
+            //     reg_key.as_str(),
+            //   )?;
+            //   Ok(WhatMessage {
+            //     what: "registration email sent".to_string(),
+            //     data: Option::None,
+            //   })
+            // } else {
+              log_user_in(tokener, callbacks, &conn, user.id)
+            // }
 
-            // notify the admin.
-            // email::send_registration_notification(
-            //   config.appname.as_str(),
-            //   config.emaildomain.as_str(),
-            //   config.admin_email.as_str(),
-            //   user.email.as_str(),
-            //   rd.uid.as_str(),
-            //   reg_key.as_str(),
-            // )?;
 
-            Ok(WhatMessage {
-              what: "registration email sent".to_string(),
-              data: Option::None,
-            })
           }
           None => {
             // if user is already registered, can't register again.
