@@ -162,10 +162,8 @@ pub fn user_interface(
             //     data: Option::None,
             //   })
             // } else {
-              log_user_in(tokener, callbacks, &conn, user.id)
+            log_user_in(tokener, callbacks, &conn, user.id)
             // }
-
-
           }
           None => {
             // if user is already registered, can't register again.
@@ -199,7 +197,8 @@ pub fn user_interface(
         let _uid = dbfun::new_user(
           &conn,
           &rd,
-          Some(registration_key.clone().to_string()),
+          // Some(registration_key.clone().to_string()),
+          None, // already registered user.  TODO attach to fooforawe mode or whatever.
           None,
           false, // NOT admin by default.
           None,
@@ -226,6 +225,10 @@ pub fn user_interface(
         //   registration_key.as_str(),
         // )?;
 
+        // Ok(WhatMessage {
+        //   what: "registration email sent".to_string(),
+        //   data: Option::None,
+        // })
         Ok(WhatMessage {
           what: "registration email sent".to_string(),
           data: Option::None,
