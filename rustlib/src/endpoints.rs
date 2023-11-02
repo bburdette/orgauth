@@ -162,7 +162,7 @@ pub fn user_interface(
             // if user is already registered, can't register again.
             // err - user exists.
             Ok(WhatMessage {
-              what: "can't register; user already exists".to_string(),
+              what: "user exists".to_string(),
               data: Option::None,
             })
           }
@@ -187,11 +187,15 @@ pub fn user_interface(
 
         // get email from 'data'.
         let registration_key = Uuid::new_v4().to_string();
-        let _uid = dbfun::new_user(
+        let uid = dbfun::new_user(
           &conn,
           &rd,
-          // Some(registration_key.clone().to_string()),
-          None, // already registered user.  TODO attach to fooforawe mode or whatever.
+          if config.send_emails {
+            Some(registration_key.clone().to_string())
+          } else {
+            // Instant registration for send_emails = false.
+            None
+          },
           None,
           false, // NOT admin by default.
           None,
@@ -223,10 +227,7 @@ pub fn user_interface(
             data: Option::None,
           })
         } else {
-          Ok(WhatMessage {
-            what: "user registered".to_string(),
-            data: Option::None,
-          })
+          log_user_in(tokener, callbacks, &conn, uid)
         }
       }
     }
