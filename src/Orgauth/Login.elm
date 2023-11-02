@@ -302,12 +302,16 @@ registrationView style model =
             , label = Input.labelLeft [] <| text "password: "
             , show = False
             }
-        , Input.email []
-            { onChange = EmailUpdate
-            , text = model.email
-            , placeholder = Nothing
-            , label = Input.labelLeft [] <| text "email:"
-            }
+        , if model.adminSettings.sendEmails then
+            Input.email []
+                { onChange = EmailUpdate
+                , text = model.email
+                , placeholder = Nothing
+                , label = Input.labelLeft [] <| text "email:"
+                }
+
+          else
+            none
         , Input.text []
             { onChange = CaptchaUpdate
             , text = model.captcha

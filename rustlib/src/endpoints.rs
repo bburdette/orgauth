@@ -218,12 +218,16 @@ pub fn user_interface(
             rd.uid.as_str(),
             registration_key.as_str(),
           )?;
+          Ok(WhatMessage {
+            what: "registration email sent".to_string(),
+            data: Option::None,
+          })
+        } else {
+          Ok(WhatMessage {
+            what: "user registered".to_string(),
+            data: Option::None,
+          })
         }
-
-        Ok(WhatMessage {
-          what: "registration email sent".to_string(),
-          data: Option::None,
-        })
       }
     }
   } else if msg.what == "rsvp" {
