@@ -695,8 +695,8 @@ pub fn admin_interface(
             config.appname.as_str(),
             config.emaildomain.as_str(),
             config.mainsite.as_str(),
-            userdata.email.as_str(),
-            userdata.name.as_str(),
+            user.email.as_str(),
+            user.name.as_str(),
             reset_key.to_string().as_str(),
           )?;
         }
