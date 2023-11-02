@@ -84,47 +84,6 @@ type alias UserInvite =
     }
 
 
-
-{--
-
-Modes:
-  - admin invite mode.
-    - openRegistration = false
-    - nonAdminInvite = false
-  - user invite mode.
-    - openRegistration = false
-    - nonAdminInvite = true
-  - open email registration.
-    - openRegistration = true
-    - nonAdminInvite = true ??  
-  - no-email registration.
-    - still allow email reset?
-
-    
-Q:  email required or no?  
-
-email optional vs email required vs email inactive.
-
-email optional:
-  - registration, but confirmation email not sent (?)
-  - uid/pwd works right away.
-  - email field is optional, shown as optional.
-  - email account reset if email present.
-
-email required:
-  - magic link sent to confirm account.
-  - email field mandatory.
-  - email account reset.
-
-email inactive
-  - email field hidden.
-  - account reset not possible
-  - account immediately available
-
-
---}
-
-
 type alias AdminSettings =
     { openRegistration : Bool
     , sendEmails : Bool
