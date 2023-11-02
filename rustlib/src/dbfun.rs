@@ -3,7 +3,6 @@ use crate::data::{Config, RegistrationData};
 use crate::error;
 use crate::util::{is_token_expired, now, salt_string};
 use actix_session::Session;
-// use crypto_hash::{hex_digest, Algorithm};
 use log::{error, info, warn};
 use rusqlite::{params, Connection};
 use sha256;
@@ -50,10 +49,6 @@ pub fn new_user(
   let now = now()?;
   let salt = salt_string();
   let hashwd = sha256::digest((rd.pwd.clone() + salt.as_str()).into_bytes().as_slice());
-  //   hex_digest(
-  //   Algorithm::SHA256,
-  //   (rd.pwd.clone() + salt.as_str()).into_bytes().as_slice(),
-  // );
 
   // make a user record.
   conn.execute(
@@ -731,11 +726,6 @@ pub fn change_password(
   match userdata.registration_key {
     Some(_reg_key) => bail!("invalid user or password"),
     None => {
-      // if hex_digest(
-      //   Algorithm::SHA256,
-      //   (cp.oldpwd.clone() + userdata.salt.as_str())
-      //     .into_bytes()
-      //     .as_slice(),
       if sha256::digest(
         (cp.oldpwd.clone() + userdata.salt.as_str())
           .into_bytes()

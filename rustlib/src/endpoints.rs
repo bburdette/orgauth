@@ -3,7 +3,7 @@ use crate::data::{
   ResetPassword, SetPassword, User, UserInvite, WhatMessage, RSVP,
 };
 use crate::dbfun;
-// use crate::email;
+use crate::email;
 use crate::error;
 use crate::util;
 use crate::util::is_token_expired;
@@ -37,13 +37,6 @@ pub trait Tokener {
   fn get(&self) -> Option<Uuid>;
 }
 
-// pub struct ActixTokener<'a> {
-//   session: &'a mut Session,
-// }
-
-// pub struct ActixTokener {
-//   session: &Session,
-// }
 pub struct ActixTokener<'a> {
   pub session: &'a Session,
 }
@@ -138,32 +131,32 @@ pub fn user_interface(
               dbfun::override_password(&conn, user.id, rd.pwd)?;
             }
 
-            // if config.send_registration_email {
-            //   // send a registration email.
-            //   email::send_registration(
-            //     config.appname.as_str(),
-            //     config.emaildomain.as_str(),
-            //     config.mainsite.as_str(),
-            //     user.email.as_str(),
-            //     rd.uid.as_str(),
-            //     reg_key.as_str(),
-            //   )?;
-            //   // notify the admin.
-            //   email::send_registration_notification(
-            //     config.appname.as_str(),
-            //     config.emaildomain.as_str(),
-            //     config.admin_email.as_str(),
-            //     user.email.as_str(),
-            //     rd.uid.as_str(),
-            //     reg_key.as_str(),
-            //   )?;
-            //   Ok(WhatMessage {
-            //     what: "registration email sent".to_string(),
-            //     data: Option::None,
-            //   })
-            // } else {
-            log_user_in(tokener, callbacks, &conn, user.id)
-            // }
+            if config.send_emails {
+              // send a registration email.
+              email::send_registration(
+                config.appname.as_str(),
+                config.emaildomain.as_str(),
+                config.mainsite.as_str(),
+                user.email.as_str(),
+                rd.uid.as_str(),
+                reg_key.as_str(),
+              )?;
+              // notify the admin.
+              email::send_registration_notification(
+                config.appname.as_str(),
+                config.emaildomain.as_str(),
+                config.admin_email.as_str(),
+                user.email.as_str(),
+                rd.uid.as_str(),
+                reg_key.as_str(),
+              )?;
+              Ok(WhatMessage {
+                what: "registration email sent".to_string(),
+                data: Option::None,
+              })
+            } else {
+              log_user_in(tokener, callbacks, &conn, user.id)
+            }
           }
           None => {
             // if user is already registered, can't register again.
@@ -205,34 +198,36 @@ pub fn user_interface(
           &mut callbacks.on_new_user,
         )?;
 
-        // send a registration email.
-        // email::send_registration(
-        //   config.appname.as_str(),
-        //   config.emaildomain.as_str(),
-        //   config.mainsite.as_str(),
-        //   rd.email.as_str(),
-        //   rd.uid.as_str(),
-        //   registration_key.as_str(),
-        // )?;
+        if config.send_emails {
+          // send a registration email.
+          email::send_registration(
+            config.appname.as_str(),
+            config.emaildomain.as_str(),
+            config.mainsite.as_str(),
+            rd.email.as_str(),
+            rd.uid.as_str(),
+            registration_key.as_str(),
+          )?;
 
-        // // notify the admin.
-        // email::send_registration_notification(
-        //   config.appname.as_str(),
-        //   config.emaildomain.as_str(),
-        //   config.admin_email.as_str(),
-        //   rd.email.as_str(),
-        //   rd.uid.as_str(),
-        //   registration_key.as_str(),
-        // )?;
-
-        // Ok(WhatMessage {
-        //   what: "registration email sent".to_string(),
-        //   data: Option::None,
-        // })
-        Ok(WhatMessage {
-          what: "registration email sent".to_string(),
-          data: Option::None,
-        })
+          // notify the admin.
+          email::send_registration_notification(
+            config.appname.as_str(),
+            config.emaildomain.as_str(),
+            config.admin_email.as_str(),
+            rd.email.as_str(),
+            rd.uid.as_str(),
+            registration_key.as_str(),
+          )?;
+          Ok(WhatMessage {
+            what: "registration email sent".to_string(),
+            data: Option::None,
+          })
+        } else {
+          Ok(WhatMessage {
+            what: "user registered".to_string(),
+            data: Option::None,
+          })
+        }
       }
     }
   } else if msg.what == "rsvp" {
@@ -325,22 +320,24 @@ pub fn user_interface(
         dbfun::remove_userinvite(&conn, &rsvp.invite.as_str())?;
 
         // notify the admin.
-        // match email::send_rsvp_notification(
-        //   config.appname.as_str(),
-        //   config.emaildomain.as_str(),
-        //   config.admin_email.as_str(),
-        //   rsvp.email.as_str(),
-        //   rsvp.uid.as_str(),
-        // ) {
-        //   Ok(_) => (),
-        //   Err(e) => {
-        //     // warn if error sending email; but keep on with new user login.
-        //     warn!(
-        //       "error sending rsvp notification for user: {}, {}",
-        //       rd.uid, e
-        //     )
-        //   }
-        // }
+        if config.send_emails {
+          match email::send_rsvp_notification(
+            config.appname.as_str(),
+            config.emaildomain.as_str(),
+            config.admin_email.as_str(),
+            rsvp.email.as_str(),
+            rsvp.uid.as_str(),
+          ) {
+            Ok(_) => (),
+            Err(e) => {
+              // warn if error sending email; but keep on with new user login.
+              warn!(
+                "error sending rsvp notification for user: {}, {}",
+                rd.uid, e
+              )
+            }
+          }
+        }
 
         // respond with login.
         log_user_in(tokener, callbacks, &conn, uid)
@@ -414,15 +411,17 @@ pub fn user_interface(
         // make 'newpassword' record.
         dbfun::add_newpassword(&conn, userdata.id, reset_key.clone())?;
 
-        // send reset email.
-        // email::send_reset(
-        //   config.appname.as_str(),
-        //   config.emaildomain.as_str(),
-        //   config.mainsite.as_str(),
-        //   userdata.email.as_str(),
-        //   userdata.name.as_str(),
-        //   reset_key.to_string().as_str(),
-        // )?;
+        if config.send_emails {
+          // send reset email.
+          email::send_reset(
+            config.appname.as_str(),
+            config.emaildomain.as_str(),
+            config.mainsite.as_str(),
+            userdata.email.as_str(),
+            userdata.name.as_str(),
+            reset_key.to_string().as_str(),
+          )?;
+        }
 
         Ok(WhatMessage {
           what: "resetpasswordack".to_string(),
@@ -514,14 +513,16 @@ pub fn user_interface_loggedin(
     let conn = dbfun::connection_open(config.db.as_path())?;
     let (name, token) = dbfun::change_email(&conn, uid, cp.clone())?;
     // send a confirmation email.
-    // email::send_newemail_confirmation(
-    //   config.appname.as_str(),
-    //   config.emaildomain.as_str(),
-    //   config.mainsite.as_str(),
-    //   cp.email.as_str(),
-    //   name.as_str(),
-    //   token.to_string().as_str(),
-    // )?;
+    if config.send_emails {
+      email::send_newemail_confirmation(
+        config.appname.as_str(),
+        config.emaildomain.as_str(),
+        config.mainsite.as_str(),
+        cp.email.as_str(),
+        name.as_str(),
+        token.to_string().as_str(),
+      )?;
+    }
 
     Ok(WhatMessage {
       what: "changed email".to_string(),
@@ -567,7 +568,6 @@ pub fn admin_interface_check(
   callbacks: &mut Callbacks,
   msg: WhatMessage,
 ) -> Result<WhatMessage, error::Error> {
-  // match session.get::<Uuid>("token")? {
   match tokener.get() {
     None => Ok(WhatMessage {
       what: "not logged in".to_string(),
@@ -694,14 +694,16 @@ pub fn admin_interface(
         dbfun::add_newpassword(&conn, uid, reset_key.clone())?;
 
         // send reset email.
-        // email::send_reset(
-        //   config.appname.as_str(),
-        //   config.emaildomain.as_str(),
-        //   config.mainsite.as_str(),
-        //   userdata.email.as_str(),
-        //   userdata.name.as_str(),
-        //   reset_key.to_string().as_str(),
-        // )?;
+        if config.send_emails {
+          email::send_reset(
+            config.appname.as_str(),
+            config.emaildomain.as_str(),
+            config.mainsite.as_str(),
+            user.email.as_str(),
+            user.name.as_str(),
+            reset_key.to_string().as_str(),
+          )?;
+        }
 
         Ok(WhatMessage {
           what: "pwd reset".to_string(),

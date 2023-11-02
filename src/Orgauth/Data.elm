@@ -127,6 +127,7 @@ email inactive
 
 type alias AdminSettings =
     { openRegistration : Bool
+    , sendEmails : Bool
     , nonAdminInvite : Bool
     }
 
@@ -251,6 +252,7 @@ decodeAdminSettings : JD.Decoder AdminSettings
 decodeAdminSettings =
     JD.succeed AdminSettings
         |> andMap (JD.field "open_registration" JD.bool)
+        |> andMap (JD.field "send_emails" JD.bool)
         |> andMap (JD.field "non_admin_invite" JD.bool)
 
 
