@@ -162,7 +162,7 @@ serverResponseDecoder =
         |> JD.andThen
             (\what ->
                 case what of
-                    "registration sent" ->
+                    "registration email sent" ->
                         JD.succeed RegistrationSent
 
                     "unregistered user" ->

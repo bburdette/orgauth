@@ -3,9 +3,9 @@ use crate::data::{Config, RegistrationData};
 use crate::error;
 use crate::util::{is_token_expired, now, salt_string};
 use actix_session::Session;
-use crypto_hash::{hex_digest, Algorithm};
 use log::{error, info, warn};
 use rusqlite::{params, Connection};
+use sha256;
 use simple_error::bail;
 use std::path::Path;
 use std::time::Duration;
@@ -48,10 +48,7 @@ pub fn new_user(
 ) -> Result<i64, error::Error> {
   let now = now()?;
   let salt = salt_string();
-  let hashwd = hex_digest(
-    Algorithm::SHA256,
-    (rd.pwd.clone() + salt.as_str()).into_bytes().as_slice(),
-  );
+  let hashwd = sha256::digest((rd.pwd.clone() + salt.as_str()).into_bytes().as_slice());
 
   // make a user record.
   conn.execute(
@@ -729,8 +726,7 @@ pub fn change_password(
   match userdata.registration_key {
     Some(_reg_key) => bail!("invalid user or password"),
     None => {
-      if hex_digest(
-        Algorithm::SHA256,
+      if sha256::digest(
         (cp.oldpwd.clone() + userdata.salt.as_str())
           .into_bytes()
           .as_slice(),
@@ -739,8 +735,7 @@ pub fn change_password(
         // old password is bad, can't change.
         bail!("invalid password!")
       } else {
-        let newhash = hex_digest(
-          Algorithm::SHA256,
+        let newhash = sha256::digest(
           (cp.newpwd.clone() + userdata.salt.as_str())
             .into_bytes()
             .as_slice(),
@@ -762,8 +757,7 @@ pub fn override_password(conn: &Connection, uid: i64, newpwd: String) -> Result<
   // just being cautious in limiting this to only unregistered.
   match userdata.registration_key {
     Some(ref _reg_key) => {
-      let newhash = hex_digest(
-        Algorithm::SHA256,
+      let newhash = sha256::digest(
         (newpwd.clone() + userdata.salt.as_str())
           .into_bytes()
           .as_slice(),
@@ -789,8 +783,7 @@ pub fn change_email(
   match userdata.registration_key {
     Some(_reg_key) => bail!("invalid user or password"),
     None => {
-      if hex_digest(
-        Algorithm::SHA256,
+      if sha256::digest(
         (cp.pwd.clone() + userdata.salt.as_str())
           .into_bytes()
           .as_slice(),

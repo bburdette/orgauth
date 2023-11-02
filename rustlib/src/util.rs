@@ -39,6 +39,7 @@ pub fn get_rand_string(len: usize) -> String {
   rstr
 }
 
+// TODO: why not as_millseconds?
 pub fn now() -> Result<i64, error::Error> {
   let nowsecs = SystemTime::now()
     .duration_since(SystemTime::UNIX_EPOCH)

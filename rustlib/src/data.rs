@@ -15,6 +15,7 @@ pub struct Config {
   pub reset_token_expiration_ms: i64,
   pub invite_token_expiration_ms: i64,
   pub open_registration: bool,
+  pub send_emails: bool,
   pub non_admin_invite: bool,
 }
 
@@ -31,12 +32,14 @@ pub struct LoginData {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AdminSettings {
   pub open_registration: bool,
+  pub send_emails: bool,
   pub non_admin_invite: bool,
 }
 
 pub fn admin_settings(config: &Config) -> AdminSettings {
   AdminSettings {
     open_registration: config.open_registration,
+    send_emails: config.send_emails,
     non_admin_invite: config.non_admin_invite,
   }
 }
