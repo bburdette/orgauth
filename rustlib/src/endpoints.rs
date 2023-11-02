@@ -3,7 +3,7 @@ use crate::data::{
   ResetPassword, SetPassword, User, UserInvite, WhatMessage, RSVP,
 };
 use crate::dbfun;
-// use crate::email;
+use crate::email;
 use crate::error;
 use crate::util;
 use crate::util::is_token_expired;
@@ -37,13 +37,6 @@ pub trait Tokener {
   fn get(&self) -> Option<Uuid>;
 }
 
-// pub struct ActixTokener<'a> {
-//   session: &'a mut Session,
-// }
-
-// pub struct ActixTokener {
-//   session: &Session,
-// }
 pub struct ActixTokener<'a> {
   pub session: &'a Session,
 }
@@ -227,10 +220,6 @@ pub fn user_interface(
           )?;
         }
 
-        // Ok(WhatMessage {
-        //   what: "registration email sent".to_string(),
-        //   data: Option::None,
-        // })
         Ok(WhatMessage {
           what: "registration email sent".to_string(),
           data: Option::None,
@@ -575,7 +564,6 @@ pub fn admin_interface_check(
   callbacks: &mut Callbacks,
   msg: WhatMessage,
 ) -> Result<WhatMessage, error::Error> {
-  // match session.get::<Uuid>("token")? {
   match tokener.get() {
     None => Ok(WhatMessage {
       what: "not logged in".to_string(),

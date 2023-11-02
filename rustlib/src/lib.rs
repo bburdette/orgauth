@@ -2,7 +2,7 @@ extern crate serde_derive;
 
 pub mod data;
 pub mod dbfun;
-// pub mod email;
+pub mod email;
 pub mod endpoints;
 pub mod error;
 pub mod migrations;
