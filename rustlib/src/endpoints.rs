@@ -190,7 +190,7 @@ pub async fn user_interface(
         }
 
         // are we doing remote registration?
-        if config.remote_registration && rd.remoteUrl != "" {
+        if config.remote_registration && rd.remote_url != "" {
           // try to log in to an existing account on the remote!
           let client = reqwest::Client::new();
           let l = WhatMessage {
@@ -200,7 +200,7 @@ pub async fn user_interface(
               pwd: rd.pwd.clone(),
             })?),
           };
-          let res = client.post(&rd.remoteUrl).json(&l).send().await?;
+          let res = client.post(&rd.remote_url).json(&l).send().await?;
           println!("post res: {:?}", res);
           let cookie = match res.headers().get(reqwest::header::SET_COOKIE).clone() {
             Some(ck) => Some(
@@ -230,7 +230,7 @@ pub async fn user_interface(
                   false,
                   Option::None,
                   // Some(invite.creator),
-                  Some(rd.remoteUrl.clone()),
+                  Some(rd.remote_url.clone()),
                   cookie,
                   &mut callbacks.on_new_user,
                 )?;
@@ -364,7 +364,7 @@ pub async fn user_interface(
           uid: rsvp.uid.clone(),
           pwd: rsvp.pwd.clone(),
           email: rsvp.email.clone(),
-          remoteUrl: "".to_string(),
+          remote_url: "".to_string(),
         };
 
         // write a user record.

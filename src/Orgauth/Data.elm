@@ -128,12 +128,12 @@ decodeUserId =
 
 
 encodeRegistration : Registration -> JE.Value
-encodeRegistration l =
+encodeRegistration r =
     JE.object
-        [ ( "uid", JE.string l.uid )
-        , ( "pwd", JE.string l.pwd )
-        , ( "email", JE.string l.email )
-        , ( "remoteUrl", JE.string l.remoteUrl )
+        [ ( "uid", JE.string r.uid )
+        , ( "pwd", JE.string r.pwd )
+        , ( "email", JE.string r.email )
+        , ( "remote_url", JE.string r.remoteUrl )
         ]
 
 

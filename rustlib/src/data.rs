@@ -57,7 +57,7 @@ pub struct User {
   pub registration_key: Option<String>,
   pub admin: bool,
   pub active: bool,
-  pub remoteUrl: Option<String>,
+  pub remote_url: Option<String>,
   pub cookie: Option<String>,
 }
 
@@ -81,7 +81,7 @@ pub struct RegistrationData {
   pub uid: String,
   pub pwd: String,
   pub email: String,
-  pub remoteUrl: String,
+  pub remote_url: String,
 }
 
 #[derive(Deserialize, Debug)]

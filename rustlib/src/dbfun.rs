@@ -36,7 +36,7 @@ pub fn new_user(
   data: Option<String>,
   admin: bool,
   creator: Option<i64>,
-  remoteUrl: Option<String>,
+  remote_url: Option<String>,
   cookie: Option<String>,
   on_new_user: &mut Box<
     dyn FnMut(
@@ -52,11 +52,11 @@ pub fn new_user(
   let salt = salt_string();
   let hashwd = sha256::digest((rd.pwd.clone() + salt.as_str()).into_bytes().as_slice());
 
-  match (&cookie, &remoteUrl) {
+  match (&cookie, &remote_url) {
     (Some(_), Some(_)) => (),
     (None, None) => (),
-    (Some(_), None) => return Err("remoteUrl required with cookie".into()),
-    (None, Some(_)) => return Err("cookie required with remoteUrl".into()),
+    (Some(_), None) => return Err("remote_url required with cookie".into()),
+    (None, Some(_)) => return Err("cookie required with remote_url".into()),
   }
 
   // make a user record.
@@ -151,7 +151,7 @@ pub fn read_users(
 
 pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, error::Error> {
   let user = conn.query_row(
-    "select id, hashwd, salt, email, registration_key, admin, active, remoteUrl, cookie
+    "select id, hashwd, salt, email, registration_key, admin, active, remote_url, cookie
       from orgauth_user where name = ?1",
     params![name.to_lowercase()],
     |row| {
@@ -164,7 +164,7 @@ pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, error::E
         registration_key: row.get(4)?,
         admin: row.get(5)?,
         active: row.get(6)?,
-        remoteUrl: row.get(7)?,
+        remote_url: row.get(7)?,
         cookie: row.get(8)?,
       })
     },
@@ -175,7 +175,7 @@ pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, error::E
 
 pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, error::Error> {
   let user = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key, admin, active, remoteUrl, cookie
+    "select id, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie
       from orgauth_user where id = ?1",
     params![id],
     |row| {
@@ -188,7 +188,7 @@ pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, error::Error>
         registration_key: row.get(5)?,
         admin: row.get(6)?,
         active: row.get(7)?,
-        remoteUrl: row.get(8)?,
+        remote_url: row.get(8)?,
         cookie: row.get(9)?,
       })
     },
@@ -205,7 +205,7 @@ struct TokenInfo {
 
 fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo), error::Error> {
   let (user, tokendate, regendate, prevtoken) : (User, i64, Option<i64>, Option<String>) = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key, admin, active, remoteUrl, cookie,
+    "select id, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie,
         orgauth_token.tokendate, orgauth_token.regendate, orgauth_token.prevtoken
       from orgauth_user, orgauth_token where orgauth_user.id = orgauth_token.user and orgauth_token.token = ?1",
     params![token.to_string()],
@@ -220,7 +220,7 @@ fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo
           registration_key: row.get(5)?,
           admin: row.get(6)?,
           active: row.get(7)?,
-        remoteUrl: row.get(8)?,
+        remote_url: row.get(8)?,
         cookie: row.get(9)?,
         },
         row.get(10)?,
