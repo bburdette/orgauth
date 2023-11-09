@@ -36,6 +36,8 @@ pub fn new_user(
   data: Option<String>,
   admin: bool,
   creator: Option<i64>,
+  remoteUrl: Option<String>,
+  cookie: Option<String>,
   on_new_user: &mut Box<
     dyn FnMut(
       &Connection,
@@ -50,11 +52,18 @@ pub fn new_user(
   let salt = salt_string();
   let hashwd = sha256::digest((rd.pwd.clone() + salt.as_str()).into_bytes().as_slice());
 
+  match (&cookie, &remoteUrl) {
+    (Some(_), Some(_)) => (),
+    (None, None) => (),
+    (Some(_), None) => return Err("remoteUrl required with cookie".into()),
+    (None, Some(_)) => return Err("cookie required with remoteUrl".into()),
+  }
+
   // make a user record.
   conn.execute(
-    "insert into orgauth_user (name, hashwd, salt, email, admin, active, registration_key, createdate)
-      values (?1, ?2, ?3, ?4, ?5, 1, ?6, ?7)",
-    params![rd.uid.to_lowercase(), hashwd, salt, rd.email, admin, registration_key, now],
+    "insert into orgauth_user (name, hashwd, salt, email, admin, active, registration_key, cookie, createdate)
+      values (?1, ?2, ?3, ?4, ?5, 1, ?6, ?7, ?8)",
+    params![rd.uid.to_lowercase(), hashwd, salt, rd.email, admin, registration_key, cookie, now],
   )?;
 
   let uid = conn.last_insert_rowid();
@@ -142,7 +151,7 @@ pub fn read_users(
 
 pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, error::Error> {
   let user = conn.query_row(
-    "select id, hashwd, salt, email, registration_key, admin, active
+    "select id, hashwd, salt, email, registration_key, admin, active, remoteUrl, cookie
       from orgauth_user where name = ?1",
     params![name.to_lowercase()],
     |row| {
@@ -155,6 +164,8 @@ pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, error::E
         registration_key: row.get(4)?,
         admin: row.get(5)?,
         active: row.get(6)?,
+        remoteUrl: row.get(7)?,
+        cookie: row.get(8)?,
       })
     },
   )?;
@@ -164,7 +175,7 @@ pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, error::E
 
 pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, error::Error> {
   let user = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key, admin, active
+    "select id, name, hashwd, salt, email, registration_key, admin, active, remoteUrl, cookie
       from orgauth_user where id = ?1",
     params![id],
     |row| {
@@ -177,6 +188,8 @@ pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, error::Error>
         registration_key: row.get(5)?,
         admin: row.get(6)?,
         active: row.get(7)?,
+        remoteUrl: row.get(8)?,
+        cookie: row.get(9)?,
       })
     },
   )?;
@@ -192,7 +205,7 @@ struct TokenInfo {
 
 fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo), error::Error> {
   let (user, tokendate, regendate, prevtoken) : (User, i64, Option<i64>, Option<String>) = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key, admin, active, 
+    "select id, name, hashwd, salt, email, registration_key, admin, active, remoteUrl, cookie,
         orgauth_token.tokendate, orgauth_token.regendate, orgauth_token.prevtoken
       from orgauth_user, orgauth_token where orgauth_user.id = orgauth_token.user and orgauth_token.token = ?1",
     params![token.to_string()],
@@ -207,10 +220,12 @@ fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo
           registration_key: row.get(5)?,
           admin: row.get(6)?,
           active: row.get(7)?,
+        remoteUrl: row.get(8)?,
+        cookie: row.get(9)?,
         },
-        row.get(8)?,
-        row.get(9)?,
         row.get(10)?,
+        row.get(11)?,
+        row.get(12)?,
       ))
     },
   )?;
@@ -463,7 +478,7 @@ pub fn purge_login_tokens(conn: &Connection, token_expiration_ms: i64) -> Result
       Ok(PurgeToken(user, token, _tokendate, _prevtoken)) => {
         info!("purging login token for user {}", user);
         conn.execute(
-          "delete from orgauth_token where 
+          "delete from orgauth_token where
           user = ?1 and token = ?2",
           params![user, token],
         )?;

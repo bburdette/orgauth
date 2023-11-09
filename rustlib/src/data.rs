@@ -57,6 +57,8 @@ pub struct User {
   pub registration_key: Option<String>,
   pub admin: bool,
   pub active: bool,
+  pub remoteUrl: Option<String>,
+  pub cookie: Option<String>,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]

@@ -12,6 +12,7 @@ use actix_web::{HttpRequest, HttpResponse};
 use log::{error, info, warn};
 use reqwest;
 use reqwest::blocking;
+use reqwest::header;
 use rusqlite::{params, Connection};
 use serde_json;
 use sha256;
@@ -201,7 +202,41 @@ pub async fn user_interface(
           };
           let res = client.post(&rd.remoteUrl).json(&l).send().await?;
           println!("post res: {:?}", res);
-          println!("post res text: {:?}", res.text().await);
+          let cookie = match res.headers().get(reqwest::header::SET_COOKIE).clone() {
+            Some(ck) => Some(
+              ck.to_str()
+                .map_err(|_| error::Error::String("invalid cookie".to_string()))?
+                .to_string(),
+            ),
+            None => None,
+          };
+
+          // println!("post res text: {:?}", res.text().await);
+          // if let wm  = res.json().into::<WhatMessage>()? {
+          if let wm = serde_json::from_value::<WhatMessage>(res.json().await?)? {
+            if let Some(d) = wm.data {
+              if let ld = serde_json::from_value::<LoginData>(d)? {
+                // got login data!
+                println!("login data {:?}", ld);
+
+                // make a local user record.
+                // write a user record.
+                let uid = dbfun::new_user(
+                  &conn,
+                  &rd,
+                  Option::None,
+                  Option::None,
+                  // invite.data,
+                  false,
+                  Option::None,
+                  // Some(invite.creator),
+                  Some(rd.remoteUrl.clone()),
+                  cookie,
+                  &mut callbacks.on_new_user,
+                )?;
+              }
+            }
+          }
           Ok(WhatMessage {
             what: "uuuhhh".to_string(),
             data: None,
@@ -220,6 +255,8 @@ pub async fn user_interface(
             },
             None,
             false, // NOT admin by default.
+            None,
+            None,
             None,
             &mut callbacks.on_new_user,
           )?;
@@ -338,6 +375,8 @@ pub async fn user_interface(
           invite.data,
           false,
           Some(invite.creator),
+          None,
+          None,
           &mut callbacks.on_new_user,
         )?;
 

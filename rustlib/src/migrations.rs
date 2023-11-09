@@ -287,7 +287,7 @@ pub fn udpate8(dbfile: &Path) -> Result<(), error::Error> {
   // copy everything from temp.
   conn.execute(
     "insert into orgauth_user_temp (id, name, hashwd, salt, email, registration_key, admin, active, createdate)
-        select (id, name, hashwd, salt, email, registration_key, admin, active, createdate) from orgauth_user",
+        select id, name, hashwd, salt, email, registration_key, admin, active, createdate from orgauth_user",
     params![],
   )?;
 
@@ -310,7 +310,7 @@ pub fn udpate8(dbfile: &Path) -> Result<(), error::Error> {
     t.add_column("admin", types::boolean().nullable(false));
     t.add_column("active", types::boolean().nullable(false));
     t.add_column("remote_url", types::text().nullable(true));
-    t.add_column("token", types::text().nullable(true));
+    t.add_column("cookie", types::text().nullable(true));
     t.add_column("createdate", types::integer().nullable(false));
   });
 
@@ -318,7 +318,7 @@ pub fn udpate8(dbfile: &Path) -> Result<(), error::Error> {
 
   conn.execute(
     "insert into orgauth_user (id, name, hashwd, salt, email, registration_key, admin, active, createdate)
-        select (id, name, hashwd, salt, email, registration_key, admin, active, createdate) from orgauth_user_temp",
+        select id, name, hashwd, salt, email, registration_key, admin, active, createdate from orgauth_user_temp",
     params![],
   )?;
 
