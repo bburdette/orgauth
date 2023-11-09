@@ -17,6 +17,7 @@ pub struct Config {
   pub open_registration: bool,
   pub send_emails: bool,
   pub non_admin_invite: bool,
+  pub remote_registration: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -34,6 +35,7 @@ pub struct AdminSettings {
   pub open_registration: bool,
   pub send_emails: bool,
   pub non_admin_invite: bool,
+  pub remote_registration: bool,
 }
 
 pub fn admin_settings(config: &Config) -> AdminSettings {
@@ -41,6 +43,7 @@ pub fn admin_settings(config: &Config) -> AdminSettings {
     open_registration: config.open_registration,
     send_emails: config.send_emails,
     non_admin_invite: config.non_admin_invite,
+    remote_registration: config.remote_registration,
   }
 }
 

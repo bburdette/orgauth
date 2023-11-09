@@ -20,6 +20,7 @@ type alias Registration =
     { uid : String
     , pwd : String
     , email : String
+    , remoteUrl : String
     }
 
 
@@ -88,6 +89,7 @@ type alias AdminSettings =
     { openRegistration : Bool
     , sendEmails : Bool
     , nonAdminInvite : Bool
+    , remoteRegistration : Bool
     }
 
 
@@ -131,6 +133,7 @@ encodeRegistration l =
         [ ( "uid", JE.string l.uid )
         , ( "pwd", JE.string l.pwd )
         , ( "email", JE.string l.email )
+        , ( "remoteUrl", JE.string l.remoteUrl )
         ]
 
 
@@ -213,6 +216,7 @@ decodeAdminSettings =
         |> andMap (JD.field "open_registration" JD.bool)
         |> andMap (JD.field "send_emails" JD.bool)
         |> andMap (JD.field "non_admin_invite" JD.bool)
+        |> andMap (JD.field "remote_registration" JD.bool)
 
 
 encodeGetInvite : GetInvite -> JE.Value
