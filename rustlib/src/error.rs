@@ -2,6 +2,7 @@ use actix_session;
 use actix_web::error as awe;
 use lettre;
 use lettre::transport::smtp as lts;
+use reqwest;
 use rusqlite;
 use serde_json;
 use std::fmt;
@@ -16,6 +17,7 @@ pub enum Error {
   LettreSmtpError(lts::Error),
   AddressError(lettre::address::AddressError),
   IoError(std::io::Error),
+  Reqwest(reqwest::Error),
 }
 
 impl std::error::Error for Error {
@@ -36,6 +38,7 @@ impl fmt::Display for Error {
       Error::LettreSmtpError(e) => write!(f, "{}", e),
       Error::AddressError(e) => write!(f, "{}", e),
       Error::IoError(e) => write!(f, "{}", e),
+      Error::Reqwest(e) => write!(f, "{}", e),
     }
   }
 }
@@ -52,6 +55,7 @@ impl fmt::Debug for Error {
       Error::LettreSmtpError(e) => write!(f, "{}", e),
       Error::AddressError(e) => write!(f, "{}", e),
       Error::IoError(e) => write!(f, "{}", e),
+      Error::Reqwest(e) => write!(f, "{}", e),
     }
   }
 }
@@ -113,6 +117,12 @@ impl From<lts::Error> for Error {
 impl From<std::io::Error> for Error {
   fn from(e: std::io::Error) -> Self {
     Error::IoError(e)
+  }
+}
+
+impl From<reqwest::Error> for Error {
+  fn from(e: reqwest::Error) -> Self {
+    Error::Reqwest(e)
   }
 }
 

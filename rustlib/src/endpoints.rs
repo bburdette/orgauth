@@ -10,7 +10,10 @@ use crate::util::is_token_expired;
 use actix_session::Session;
 use actix_web::{HttpRequest, HttpResponse};
 use log::{error, info, warn};
+use reqwest;
+use reqwest::blocking;
 use rusqlite::{params, Connection};
+use serde_json;
 use sha256;
 use std::str::FromStr;
 use util::now;
@@ -90,7 +93,7 @@ pub fn log_user_in(
   })
 }
 
-pub fn user_interface(
+pub async fn user_interface(
   tokener: &mut dyn Tokener,
   config: &Config,
   callbacks: &mut Callbacks,
@@ -185,49 +188,69 @@ pub fn user_interface(
           });
         }
 
-        // get email from 'data'.
-        let registration_key = Uuid::new_v4().to_string();
-        let uid = dbfun::new_user(
-          &conn,
-          &rd,
-          if config.send_emails {
-            Some(registration_key.clone().to_string())
-          } else {
-            // Instant registration for send_emails = false.
-            None
-          },
-          None,
-          false, // NOT admin by default.
-          None,
-          &mut callbacks.on_new_user,
-        )?;
-
-        if config.send_emails {
-          // send a registration email.
-          email::send_registration(
-            config.appname.as_str(),
-            config.emaildomain.as_str(),
-            config.mainsite.as_str(),
-            rd.email.as_str(),
-            rd.uid.as_str(),
-            registration_key.as_str(),
-          )?;
-
-          // notify the admin.
-          email::send_registration_notification(
-            config.appname.as_str(),
-            config.emaildomain.as_str(),
-            config.admin_email.as_str(),
-            rd.email.as_str(),
-            rd.uid.as_str(),
-            registration_key.as_str(),
-          )?;
+        // are we doing remote registration?
+        if config.remote_registration && rd.remoteUrl != "" {
+          // try to log in to an existing account on the remote!
+          let client = reqwest::Client::new();
+          let l = WhatMessage {
+            what: "login".to_string(),
+            data: Some(serde_json::to_value(Login {
+              uid: rd.uid.clone(),
+              pwd: rd.pwd.clone(),
+            })?),
+          };
+          let res = client.post(&rd.remoteUrl).json(&l).send().await?;
+          println!("post res: {:?}", res);
+          println!("post res text: {:?}", res.text().await);
           Ok(WhatMessage {
-            what: "registration email sent".to_string(),
-            data: Option::None,
+            what: "uuuhhh".to_string(),
+            data: None,
           })
         } else {
-          log_user_in(tokener, callbacks, &conn, uid)
+          // get email from 'data'.
+          let registration_key = Uuid::new_v4().to_string();
+          let uid = dbfun::new_user(
+            &conn,
+            &rd,
+            if config.send_emails {
+              Some(registration_key.clone().to_string())
+            } else {
+              // Instant registration for send_emails = false.
+              None
+            },
+            None,
+            false, // NOT admin by default.
+            None,
+            &mut callbacks.on_new_user,
+          )?;
+
+          if config.send_emails {
+            // send a registration email.
+            email::send_registration(
+              config.appname.as_str(),
+              config.emaildomain.as_str(),
+              config.mainsite.as_str(),
+              rd.email.as_str(),
+              rd.uid.as_str(),
+              registration_key.as_str(),
+            )?;
+
+            // notify the admin.
+            email::send_registration_notification(
+              config.appname.as_str(),
+              config.emaildomain.as_str(),
+              config.admin_email.as_str(),
+              rd.email.as_str(),
+              rd.uid.as_str(),
+              registration_key.as_str(),
+            )?;
+            Ok(WhatMessage {
+              what: "registration email sent".to_string(),
+              data: Option::None,
+            })
+          } else {
+            log_user_in(tokener, callbacks, &conn, uid)
+          }
         }
       }
     }
@@ -304,6 +327,7 @@ pub fn user_interface(
           uid: rsvp.uid.clone(),
           pwd: rsvp.pwd.clone(),
           email: rsvp.email.clone(),
+          remoteUrl: "".to_string(),
         };
 
         // write a user record.

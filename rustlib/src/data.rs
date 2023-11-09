@@ -79,6 +79,7 @@ pub struct RegistrationData {
   pub uid: String,
   pub pwd: String,
   pub email: String,
+  pub remoteUrl: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -89,7 +90,7 @@ pub struct RSVP {
   pub invite: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Login {
   pub uid: String,
   pub pwd: String,
