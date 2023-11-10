@@ -233,12 +233,14 @@ pub async fn user_interface(
               cookie,
               &mut callbacks.on_new_user,
             )?;
-          }
 
-          Ok(WhatMessage {
-            what: "uuuhhh".to_string(),
-            data: None,
-          })
+            log_user_in(tokener, callbacks, &conn, uid)
+          } else {
+            Ok(WhatMessage {
+              what: "remote registration failed".to_string(),
+              data: None,
+            })
+          }
         } else {
           // get email from 'data'.
           let registration_key = Uuid::new_v4().to_string();
