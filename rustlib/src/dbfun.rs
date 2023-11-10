@@ -61,9 +61,9 @@ pub fn new_user(
 
   // make a user record.
   conn.execute(
-    "insert into orgauth_user (name, hashwd, salt, email, admin, active, registration_key, cookie, createdate)
-      values (?1, ?2, ?3, ?4, ?5, 1, ?6, ?7, ?8)",
-    params![rd.uid.to_lowercase(), hashwd, salt, rd.email, admin, registration_key, cookie, now],
+    "insert into orgauth_user (name, hashwd, salt, email, admin, active, registration_key, remote_url, cookie, createdate)
+      values (?1, ?2, ?3, ?4, ?5, 1, ?6, ?7, ?8, ?9)",
+    params![rd.uid.to_lowercase(), hashwd, salt, rd.email, admin, registration_key, remote_url, cookie, now],
   )?;
 
   let uid = conn.last_insert_rowid();
