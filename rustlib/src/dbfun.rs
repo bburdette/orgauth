@@ -35,6 +35,7 @@ pub fn new_user(
   registration_key: Option<String>,
   data: Option<String>,
   admin: bool,
+  uuid: Option<Uuid>,
   creator: Option<i64>,
   remote_url: Option<String>,
   cookie: Option<String>,
@@ -51,7 +52,10 @@ pub fn new_user(
   let now = now()?;
   let salt = salt_string();
   let hashwd = sha256::digest((rd.pwd.clone() + salt.as_str()).into_bytes().as_slice());
-  let uuid = uuid::Uuid::new_v4();
+  let uuid = match uuid {
+    None => uuid::Uuid::new_v4(),
+    Some(uuid) => uuid,
+  };
 
   match (&cookie, &remote_url) {
     (Some(_), Some(_)) => (),
