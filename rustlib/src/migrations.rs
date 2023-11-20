@@ -273,6 +273,7 @@ pub fn udpate8(dbfile: &Path) -> Result<(), error::Error> {
         .nullable(false),
     );
     t.add_column("name", types::text().nullable(false).unique(true));
+    t.add_column("uuid", types::text().nullable(true).unique(true));
     t.add_column("hashwd", types::text().nullable(false));
     t.add_column("salt", types::text().nullable(false));
     t.add_column("email", types::text().nullable(false));
@@ -291,6 +292,25 @@ pub fn udpate8(dbfile: &Path) -> Result<(), error::Error> {
     params![],
   )?;
 
+  // now make uuids for all users.
+  let mut pstmt = conn.prepare("select id from orgauth_user_temp")?;
+  let ids: Vec<i64> = pstmt
+    .query_map(params![], |row| Ok(row.get(0)?))?
+    .filter_map(|x| x.ok())
+    .collect();
+
+  // this is horrifically slow
+  for id in ids {
+    let uuid = uuid::Uuid::new_v4();
+
+    conn.execute(
+      "update orgauth_user_temp set uuid = ?1 where id = ?2",
+      params![uuid.to_string(), id],
+    )?;
+
+    println!("updated user {} {}", id, uuid);
+  }
+
   let mut m2 = Migration::new();
   m2.drop_table("orgauth_user");
 
@@ -303,6 +323,7 @@ pub fn udpate8(dbfile: &Path) -> Result<(), error::Error> {
         .nullable(false),
     );
     t.add_column("name", types::text().nullable(false).unique(true));
+    t.add_column("uuid", types::text().nullable(false).unique(true));
     t.add_column("hashwd", types::text().nullable(false));
     t.add_column("salt", types::text().nullable(false));
     t.add_column("email", types::text().nullable(false));
@@ -317,8 +338,8 @@ pub fn udpate8(dbfile: &Path) -> Result<(), error::Error> {
   conn.execute_batch(m2.make::<Sqlite>().as_str())?;
 
   conn.execute(
-    "insert into orgauth_user (id, name, hashwd, salt, email, registration_key, admin, active, createdate)
-        select id, name, hashwd, salt, email, registration_key, admin, active, createdate from orgauth_user_temp",
+    "insert into orgauth_user (id, name, uuid, hashwd, salt, email, registration_key, admin, active, createdate)
+        select id, name, uuid, hashwd, salt, email, registration_key, admin, active, createdate from orgauth_user_temp",
     params![],
   )?;
 

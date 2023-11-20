@@ -51,6 +51,7 @@ pub fn new_user(
   let now = now()?;
   let salt = salt_string();
   let hashwd = sha256::digest((rd.pwd.clone() + salt.as_str()).into_bytes().as_slice());
+  let uuid = uuid::Uuid::new_v4();
 
   match (&cookie, &remote_url) {
     (Some(_), Some(_)) => (),
@@ -61,9 +62,9 @@ pub fn new_user(
 
   // make a user record.
   conn.execute(
-    "insert into orgauth_user (name, hashwd, salt, email, admin, active, registration_key, remote_url, cookie, createdate)
-      values (?1, ?2, ?3, ?4, ?5, 1, ?6, ?7, ?8, ?9)",
-    params![rd.uid.to_lowercase(), hashwd, salt, rd.email, admin, registration_key, remote_url, cookie, now],
+    "insert into orgauth_user (name, uuid, hashwd, salt, email, admin, active, registration_key, remote_url, cookie, createdate)
+      values (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, ?8, ?9, ?10)",
+    params![rd.uid.to_lowercase(), uuid.to_string(), hashwd, salt, rd.email, admin, registration_key, remote_url, cookie, now],
   )?;
 
   let uid = conn.last_insert_rowid();
@@ -88,6 +89,7 @@ pub fn login_data(conn: &Connection, uid: i64) -> Result<LoginData, error::Error
   let user = read_user_by_id(&conn, uid)?;
   Ok(LoginData {
     userid: uid,
+    uuid: user.uuid,
     name: user.name,
     email: user.email,
     admin: user.admin,
@@ -106,6 +108,7 @@ pub fn login_data_cb(
   let user = read_user_by_id(&conn, uid)?;
   Ok(LoginData {
     userid: uid,
+    uuid: user.uuid,
     name: user.name,
     email: user.email,
     admin: user.admin,
@@ -151,37 +154,14 @@ pub fn read_users(
 
 pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, error::Error> {
   let user = conn.query_row(
-    "select id, hashwd, salt, email, registration_key, admin, active, remote_url, cookie
+    "select id, uuid, hashwd, salt, email, registration_key, admin, active, remote_url, cookie
       from orgauth_user where name = ?1",
     params![name.to_lowercase()],
     |row| {
       Ok(User {
         id: row.get(0)?,
+        uuid: row.get(1)?,
         name: name.to_lowercase(),
-        hashwd: row.get(1)?,
-        salt: row.get(2)?,
-        email: row.get(3)?,
-        registration_key: row.get(4)?,
-        admin: row.get(5)?,
-        active: row.get(6)?,
-        remote_url: row.get(7)?,
-        cookie: row.get(8)?,
-      })
-    },
-  )?;
-
-  Ok(user)
-}
-
-pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, error::Error> {
-  let user = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie
-      from orgauth_user where id = ?1",
-    params![id],
-    |row| {
-      Ok(User {
-        id: row.get(0)?,
-        name: row.get(1)?,
         hashwd: row.get(2)?,
         salt: row.get(3)?,
         email: row.get(4)?,
@@ -197,6 +177,31 @@ pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, error::Error>
   Ok(user)
 }
 
+pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, error::Error> {
+  let user = conn.query_row(
+    "select id, uuid, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie
+      from orgauth_user where id = ?1",
+    params![id],
+    |row| {
+      Ok(User {
+        id: row.get(0)?,
+        uuid: row.get(1)?,
+        name: row.get(2)?,
+        hashwd: row.get(3)?,
+        salt: row.get(4)?,
+        email: row.get(5)?,
+        registration_key: row.get(6)?,
+        admin: row.get(7)?,
+        active: row.get(8)?,
+        remote_url: row.get(9)?,
+        cookie: row.get(10)?,
+      })
+    },
+  )?;
+
+  Ok(user)
+}
+
 struct TokenInfo {
   tokendate: i64,
   regendate: Option<i64>,
@@ -205,7 +210,7 @@ struct TokenInfo {
 
 fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo), error::Error> {
   let (user, tokendate, regendate, prevtoken) : (User, i64, Option<i64>, Option<String>) = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie,
+    "select id, uuid, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie,
         orgauth_token.tokendate, orgauth_token.regendate, orgauth_token.prevtoken
       from orgauth_user, orgauth_token where orgauth_user.id = orgauth_token.user and orgauth_token.token = ?1",
     params![token.to_string()],
@@ -213,19 +218,20 @@ fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo
       Ok((
         User {
           id: row.get(0)?,
-          name: row.get(1)?,
-          hashwd: row.get(2)?,
-          salt: row.get(3)?,
-          email: row.get(4)?,
-          registration_key: row.get(5)?,
-          admin: row.get(6)?,
-          active: row.get(7)?,
-        remote_url: row.get(8)?,
-        cookie: row.get(9)?,
+          uuid: row.get(1)?,
+          name: row.get(2)?,
+          hashwd: row.get(3)?,
+          salt: row.get(4)?,
+          email: row.get(5)?,
+          registration_key: row.get(6)?,
+          admin: row.get(7)?,
+          active: row.get(8)?,
+          remote_url: row.get(9)?,
+          cookie: row.get(10)?,
         },
-        row.get(10)?,
         row.get(11)?,
         row.get(12)?,
+        row.get(13)?,
       ))
     },
   )?;

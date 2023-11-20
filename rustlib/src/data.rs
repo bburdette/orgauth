@@ -23,6 +23,7 @@ pub struct Config {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LoginData {
   pub userid: i64,
+  pub uuid: String,
   pub name: String,
   pub email: String,
   pub admin: bool,
@@ -50,6 +51,7 @@ pub fn admin_settings(config: &Config) -> AdminSettings {
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct User {
   pub id: i64,
+  pub uuid: String,
   pub name: String,
   pub hashwd: String,
   pub salt: String,
