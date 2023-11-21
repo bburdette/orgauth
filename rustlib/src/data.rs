@@ -63,6 +63,15 @@ pub struct User {
   pub cookie: Option<String>,
 }
 
+// Represents a remote user that is not registered on this server.
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct PhantomUser {
+  pub id: i64,
+  pub uuid: String,
+  pub name: String,
+  pub active: bool,
+}
+
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct UserInvite {
   pub email: Option<String>,

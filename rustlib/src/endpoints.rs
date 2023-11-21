@@ -1,6 +1,6 @@
 use crate::data::{
-  ChangeEmail, ChangePassword, Config, GetInvite, Login, LoginData, PwdReset, RegistrationData,
-  ResetPassword, SetPassword, User, UserInvite, WhatMessage, RSVP,
+  ChangeEmail, ChangePassword, Config, GetInvite, Login, LoginData, PhantomUser, PwdReset,
+  RegistrationData, ResetPassword, SetPassword, User, UserInvite, WhatMessage, RSVP,
 };
 use crate::dbfun;
 use crate::email;
@@ -552,6 +552,37 @@ pub async fn user_interface(
             // finally!  processing messages as logged in user.
             user_interface_loggedin(&config, userdata.id, &msg)
           }
+        }
+      }
+    }
+  } else if msg.what == "read_remote_user" {
+    // are we logged in?
+    match tokener.get() {
+      None => Ok(WhatMessage {
+        what: "not logged in".to_string(),
+        data: Option::None,
+      }),
+      Some(token) => {
+        let id = serde_json::from_value::<i64>(
+          msg
+            .data
+            .ok_or(error::Error::String("no user id in data field".to_string()))?,
+        )?;
+        let conn = dbfun::connection_open(config.db.as_path())?;
+        match dbfun::read_user_by_id(&conn, id) {
+          Err(_e) => Ok(WhatMessage {
+            what: "invalid user id".to_string(),
+            data: Option::None,
+          }),
+          Ok(userdata) => Ok(WhatMessage {
+            what: "remote_user".to_string(),
+            data: Some(serde_json::to_value(PhantomUser {
+              id: userdata.id,
+              uuid: userdata.uuid,
+              name: userdata.name,
+              active: userdata.active,
+            })?),
+          }),
         }
       }
     }

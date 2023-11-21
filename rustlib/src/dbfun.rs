@@ -78,6 +78,43 @@ pub fn new_user(
   Ok(uid)
 }
 
+pub fn phantom_user(
+  conn: &Connection,
+  name: String,
+  uuid: Uuid,
+  active: bool,
+  on_new_user: &mut Box<
+    dyn FnMut(
+      &Connection,
+      &RegistrationData,
+      Option<String>,
+      Option<i64>,
+      i64,
+    ) -> Result<(), error::Error>,
+  >,
+) -> Result<i64, error::Error> {
+  let now = now()?;
+  let rd = RegistrationData {
+    uid: name.to_lowercase(),
+    pwd: "".to_string(),
+    email: "".to_string(),
+    remote_url: "".to_string(),
+  };
+
+  // make a user record.
+  conn.execute(
+    "insert into orgauth_user (name, uuid, hashwd, salt, email, admin, active, registration_key, createdate)
+      values (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8)",
+    params![name.to_lowercase(), uuid.to_string(), "phantom", "phantom", "phantom", active,"phantom", now],
+  )?;
+
+  let uid = conn.last_insert_rowid();
+
+  (on_new_user)(&conn, &rd, None, None, uid)?;
+
+  Ok(uid)
+}
+
 // pub fn user_id(conn: &Connection, name: &str) -> Result<i64, error::Error> {
 pub fn user_id(conn: &Connection, name: &str) -> Result<i64, error::Error> {
   let id: i64 = conn.query_row(
@@ -186,6 +223,31 @@ pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, error::Error>
     "select id, uuid, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie
       from orgauth_user where id = ?1",
     params![id],
+    |row| {
+      Ok(User {
+        id: row.get(0)?,
+        uuid: row.get(1)?,
+        name: row.get(2)?,
+        hashwd: row.get(3)?,
+        salt: row.get(4)?,
+        email: row.get(5)?,
+        registration_key: row.get(6)?,
+        admin: row.get(7)?,
+        active: row.get(8)?,
+        remote_url: row.get(9)?,
+        cookie: row.get(10)?,
+      })
+    },
+  )?;
+
+  Ok(user)
+}
+
+pub fn read_user_by_uuid(conn: &Connection, uuid: &str) -> Result<User, error::Error> {
+  let user = conn.query_row(
+    "select id, uuid, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie
+      from orgauth_user where uuid = ?1",
+    params![uuid],
     |row| {
       Ok(User {
         id: row.get(0)?,

@@ -15,6 +15,7 @@ import Util
 
 type alias Model =
     { name : String
+    , uuid : String
     , email : String
     , admin : Bool
     , active : Bool
@@ -46,6 +47,7 @@ type Command
 init : Data.LoginData -> Model
 init ld =
     { name = ld.name
+    , uuid = ld.uuid
     , email = ld.email
     , admin = ld.admin
     , active = ld.active
@@ -56,6 +58,7 @@ init ld =
 initNew : Model
 initNew =
     { name = ""
+    , uuid = ""
     , email = ""
     , admin = False
     , active = False
@@ -179,6 +182,7 @@ update msg model =
                         ( model
                         , Save
                             { userid = ld.userid
+                            , uuid = model.uuid
                             , name = model.name
                             , email = model.email
                             , admin = model.admin
