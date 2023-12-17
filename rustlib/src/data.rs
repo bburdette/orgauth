@@ -139,8 +139,90 @@ pub struct ChangeEmail {
   pub email: String,
 }
 
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq)]
+pub enum UserRequest {
+  Register,
+  Login,
+  GetInvite,
+  ReadInvite,
+  RSVP,
+  ResetPassword,
+  SetPassword,
+  Logout,
+  ChangePassword,
+  ChangeEmail,
+  ReadRemoteUser,
+}
+
 #[derive(Deserialize, Serialize, Debug)]
-pub struct WhatMessage {
-  pub what: String,
+pub struct UserMessage {
+  pub what: UserRequest,
+  pub data: Option<serde_json::Value>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub enum UserResponse {
+  RegistrationSent,
+  UserExists,
+  UnregisteredUser,
+  InvalidUserOrPwd,
+  InvalidUserId,
+  BlankUserName,
+  BlankPassword,
+  NotLoggedIn,
+  AccountDeactivated,
+  LoggedIn,
+  LoggedOut,
+  ChangedPassword,
+  ChangedEmail,
+  ResetPasswordAck,
+  SetPasswordAck,
+  Invite,
+  RemoteRegistrationFailed,
+  RemoteUser,
+  NoData,
+  ServerError,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct UserResponseMessage {
+  pub what: UserResponse,
+  pub data: Option<serde_json::Value>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub enum AdminRequest {
+  GetUsers,
+  DeleteUser,
+  UpdateUser,
+  GetInvite,
+  GetPwdReset,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct AdminMessage {
+  pub what: AdminRequest,
+  pub data: Option<serde_json::Value>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub enum AdminResponse {
+  Users,
+  UserDeleted,
+  UserNotDeleted,
+  NoUserId,
+  NoData,
+  UserUpdated,
+  ServerError,
+  UserInvite,
+  PwdReset,
+  NotLoggedIn,
+  InvalidUserOrPassword,
+  AccessDenied,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct AdminResponseMessage {
+  pub what: AdminResponse,
   pub data: Option<serde_json::Value>,
 }
