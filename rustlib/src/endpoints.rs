@@ -1,7 +1,8 @@
 use crate::data::{
-  AdminMessage, AdminRequest, AdminResponse, AdminResponseMessage, ChangeEmail, ChangePassword,
-  Config, GetInvite, Login, LoginData, PhantomUser, PwdReset, RegistrationData, ResetPassword,
-  SetPassword, User, UserInvite, UserMessage, UserRequest, UserResponse, UserResponseMessage, RSVP,
+  AdminRequest, AdminRequestMessage, AdminResponse, AdminResponseMessage, ChangeEmail,
+  ChangePassword, Config, GetInvite, Login, LoginData, PhantomUser, PwdReset, RegistrationData,
+  ResetPassword, SetPassword, User, UserInvite, UserRequest, UserRequestMessage, UserResponse,
+  UserResponseMessage, RSVP,
 };
 use crate::dbfun;
 use crate::email;
@@ -97,7 +98,7 @@ pub async fn user_interface(
   tokener: &mut dyn Tokener,
   config: &Config,
   callbacks: &mut Callbacks,
-  msg: UserMessage,
+  msg: UserRequestMessage,
 ) -> Result<UserResponseMessage, error::Error> {
   let conn = dbfun::connection_open(config.db.as_path())?;
   if msg.what == UserRequest::Register {
@@ -192,7 +193,7 @@ pub async fn user_interface(
         if config.remote_registration && rd.remote_url != "" {
           // try to log in to an existing account on the remote!
           let client = reqwest::Client::new();
-          let l = UserMessage {
+          let l = UserRequestMessage {
             what: UserRequest::Login,
             data: Some(serde_json::to_value(Login {
               uid: rd.uid.clone(),
@@ -598,7 +599,7 @@ pub async fn user_interface(
 pub fn user_interface_loggedin(
   config: &Config,
   uid: i64,
-  msg: &UserMessage,
+  msg: &UserRequestMessage,
 ) -> Result<UserResponseMessage, error::Error> {
   if msg.what == UserRequest::ChangePassword {
     let msgdata = Option::ok_or(msg.data.as_ref(), "malformed json data")?;
@@ -668,7 +669,7 @@ pub fn admin_interface_check(
 
   config: &Config,
   callbacks: &mut Callbacks,
-  msg: AdminMessage,
+  msg: AdminRequestMessage,
 ) -> Result<AdminResponseMessage, error::Error> {
   match tokener.get() {
     None => Ok(AdminResponseMessage {
@@ -708,7 +709,7 @@ pub fn admin_interface(
   config: &Config,
   user: &User,
   callbacks: &mut Callbacks,
-  msg: &AdminMessage,
+  msg: &AdminRequestMessage,
 ) -> Result<AdminResponseMessage, error::Error> {
   match msg.what {
     AdminRequest::GetUsers => {

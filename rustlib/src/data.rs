@@ -155,7 +155,7 @@ pub enum UserRequest {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct UserMessage {
+pub struct UserRequestMessage {
   pub what: UserRequest,
   pub data: Option<serde_json::Value>,
 }
@@ -200,7 +200,7 @@ pub enum AdminRequest {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct AdminMessage {
+pub struct AdminRequestMessage {
   pub what: AdminRequest,
   pub data: Option<serde_json::Value>,
 }
