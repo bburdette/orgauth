@@ -70,7 +70,7 @@ type alias ChangeEmail =
 
 type alias LoginData =
     { userid : UserId
-    , uuid : String
+    , uuid : UUID
     , name : String
     , email : String
     , admin : Bool
@@ -192,7 +192,7 @@ decodeLoginData : JD.Decoder LoginData
 decodeLoginData =
     JD.succeed LoginData
         |> andMap (JD.field "userid" JD.int |> JD.map makeUserId)
-        |> andMap (JD.field "uuid" JD.string)
+        |> andMap (JD.field "uuid" UUID.jsonDecoder)
         |> andMap (JD.field "name" JD.string)
         |> andMap (JD.field "email" JD.string)
         |> andMap (JD.field "admin" JD.bool)
@@ -204,7 +204,7 @@ encodeLoginData : LoginData -> JE.Value
 encodeLoginData ld =
     JE.object
         [ ( "userid", JE.int <| getUserIdVal ld.userid )
-        , ( "uuid", JE.string ld.uuid )
+        , ( "uuid", UUID.toValue ld.uuid )
         , ( "name", JE.string ld.name )
         , ( "email", JE.string ld.email )
         , ( "admin", JE.bool ld.admin )
@@ -252,7 +252,7 @@ decodePwdReset =
 ------------------------------------------------
 
 
-toLd : { a | userid : UserId, uuid : String, name : String, email : String, admin : Bool, active : Bool } -> LoginData
+toLd : { a | userid : UserId, uuid : UUID, name : String, email : String, admin : Bool, active : Bool } -> LoginData
 toLd ld =
     { userid = ld.userid
     , uuid = ld.uuid

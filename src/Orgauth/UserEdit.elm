@@ -10,12 +10,13 @@ import Element.Region
 import Orgauth.Data as Data exposing (UserId)
 import TangoColors as TC
 import Time exposing (Zone)
+import UUID exposing (UUID)
 import Util
 
 
 type alias Model =
     { name : String
-    , uuid : String
+    , uuid : Maybe UUID
     , email : String
     , admin : Bool
     , active : Bool
@@ -47,7 +48,7 @@ type Command
 init : Data.LoginData -> Model
 init ld =
     { name = ld.name
-    , uuid = ld.uuid
+    , uuid = Just ld.uuid
     , email = ld.email
     , admin = ld.admin
     , active = ld.active
@@ -58,7 +59,7 @@ init ld =
 initNew : Model
 initNew =
     { name = ""
-    , uuid = ""
+    , uuid = Nothing
     , email = ""
     , admin = False
     , active = False
@@ -179,17 +180,17 @@ update msg model =
             model.initialUser
                 |> Maybe.map
                     (\ld ->
-                        ( model
-                        , Save
-                            { userid = ld.userid
-                            , uuid = model.uuid
-                            , name = model.name
-                            , email = model.email
-                            , admin = model.admin
-                            , active = model.active
-                            , data = ld.data
-                            }
-                        )
+                                    ( model
+                                    , Save
+                                        { userid = ld.userid
+                                        , uuid = ld.uuid
+                                        , name = model.name
+                                        , email = model.email
+                                        , admin = model.admin
+                                        , active = model.active
+                                        , data = ld.data
+                                        }
+                                    )
                     )
                 |> Maybe.withDefault ( model, None )
 
