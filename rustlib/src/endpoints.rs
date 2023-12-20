@@ -229,7 +229,7 @@ pub async fn user_interface(
               Option::None,
               // invite.data,
               false,
-              Some(Uuid::parse_str(ld.uuid.as_str())?),
+              Some(ld.uuid),
               Option::None,
               // Some(invite.creator),
               Some(rd.remote_url.clone()),
