@@ -194,15 +194,14 @@ pub fn read_users(
 }
 
 pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, error::Error> {
-  let user = conn.query_row(
+  let user = conn.query_row_and_then(
     "select id, uuid, hashwd, salt, email, registration_key, admin, active, remote_url, cookie
       from orgauth_user where name = ?1",
     params![name.to_lowercase()],
     |row| {
-      Ok(User {
+      Ok::<_, error::Error>(User {
         id: row.get(0)?,
-        uuid: Uuid::parse_str(row.get::<usize, String>(1)?.as_str())
-          .map_err(|_| rusqlite::Error::InvalidQuery)?,
+        uuid: Uuid::parse_str(row.get::<usize, String>(1)?.as_str())?,
         name: name.to_lowercase(),
         hashwd: row.get(2)?,
         salt: row.get(3)?,
@@ -220,15 +219,14 @@ pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, error::E
 }
 
 pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, error::Error> {
-  let user = conn.query_row(
+  let user = conn.query_row_and_then(
     "select id, uuid, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie
       from orgauth_user where id = ?1",
     params![id],
     |row| {
-      Ok(User {
+      Ok::<_, error::Error>(User {
         id: row.get(0)?,
-        uuid: Uuid::parse_str(row.get::<usize, String>(1)?.as_str())
-          .map_err(|_| rusqlite::Error::InvalidQuery)?,
+        uuid: Uuid::parse_str(row.get::<usize, String>(1)?.as_str())?,
         name: row.get(2)?,
         hashwd: row.get(3)?,
         salt: row.get(4)?,
@@ -246,15 +244,14 @@ pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, error::Error>
 }
 
 pub fn read_user_by_uuid(conn: &Connection, uuid: &Uuid) -> Result<User, error::Error> {
-  let user = conn.query_row(
+  let user = conn.query_row_and_then(
     "select id, uuid, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie
       from orgauth_user where uuid = ?1",
     params![uuid.to_string().as_str()],
     |row| {
-      Ok(User {
+      Ok::<_, error::Error>(User {
         id: row.get(0)?,
-        uuid: Uuid::parse_str(row.get::<usize, String>(1)?.as_str())
-          .map_err(|_| rusqlite::Error::InvalidQuery)?,
+        uuid: Uuid::parse_str(row.get::<usize, String>(1)?.as_str())?,
         name: row.get(2)?,
         hashwd: row.get(3)?,
         salt: row.get(4)?,
@@ -278,17 +275,16 @@ struct TokenInfo {
 }
 
 fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo), error::Error> {
-  let (user, tokendate, regendate, prevtoken) : (User, i64, Option<i64>, Option<String>) = conn.query_row(
+  let (user, tokendate, regendate, prevtoken) : (User, i64, Option<i64>, Option<String>) = conn.query_row_and_then(
     "select id, uuid, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie,
         orgauth_token.tokendate, orgauth_token.regendate, orgauth_token.prevtoken
       from orgauth_user, orgauth_token where orgauth_user.id = orgauth_token.user and orgauth_token.token = ?1",
     params![token.to_string()],
     |row| {
-      Ok((
+      Ok::<_, error::Error>((
         User {
           id: row.get(0)?,
-          uuid: Uuid::parse_str(row.get::<usize, String>(1)?.as_str())
-            .map_err(|_| rusqlite::Error::InvalidQuery)?,
+          uuid: Uuid::parse_str(row.get::<usize, String>(1)?.as_str())?,
           name: row.get(2)?,
           hashwd: row.get(3)?,
           salt: row.get(4)?,
@@ -309,9 +305,9 @@ fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo
   Ok((
     user,
     TokenInfo {
-      tokendate: tokendate,
-      regendate: regendate,
-      prevtoken: prevtoken,
+      tokendate,
+      regendate,
+      prevtoken,
     },
   ))
 }
