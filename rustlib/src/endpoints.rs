@@ -23,11 +23,12 @@ use uuid::Uuid;
 pub struct Callbacks {
   pub on_new_user: Box<
     dyn FnMut(
-      &Connection,
-      &RegistrationData,
-      Option<String>,
-      Option<i64>,
-      i64,
+      &Connection,               // <- conn
+      &RegistrationData,         // <- rd
+      Option<String>,            // <- extraLoginData
+      Option<serde_json::Value>, // <- remote_data
+      Option<i64>,               // <- creator
+      i64,                       // <- uid
     ) -> Result<(), error::Error>,
   >,
   pub extra_login_data:
@@ -172,7 +173,7 @@ pub async fn user_interface(
           }
         }
       }
-      Err(_) => {
+      Err(error::Error::Rusqlite(rusqlite::Error::QueryReturnedNoRows)) => {
         // user does not exist, which is what we want for a new user.
 
         // check for non-blank uid and password.
@@ -233,6 +234,7 @@ pub async fn user_interface(
               Option::None,
               // Some(invite.creator),
               Some(rd.remote_url.clone()),
+              ld.data,
               cookie,
               &mut callbacks.on_new_user,
             )?;
@@ -258,6 +260,7 @@ pub async fn user_interface(
             },
             None,
             false, // NOT admin by default.
+            None,
             None,
             None,
             None,
@@ -294,6 +297,7 @@ pub async fn user_interface(
           }
         }
       }
+      Err(e) => Err(e),
     }
   } else if msg.what == UserRequest::RSVP {
     let msgdata = Option::ok_or(msg.data, "malformed registration data")?;
@@ -380,6 +384,7 @@ pub async fn user_interface(
           false,
           None,
           Some(invite.creator),
+          None,
           None,
           None,
           &mut callbacks.on_new_user,

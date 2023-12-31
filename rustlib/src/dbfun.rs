@@ -38,12 +38,14 @@ pub fn new_user(
   uuid: Option<Uuid>,
   creator: Option<i64>,
   remote_url: Option<String>,
+  remote_data: Option<serde_json::Value>,
   cookie: Option<String>,
   on_new_user: &mut Box<
     dyn FnMut(
       &Connection,
       &RegistrationData,
       Option<String>,
+      Option<serde_json::Value>, // <- remote_data
       Option<i64>,
       i64,
     ) -> Result<(), error::Error>,
@@ -73,7 +75,7 @@ pub fn new_user(
 
   let uid = conn.last_insert_rowid();
 
-  (on_new_user)(&conn, &rd, data, creator, uid)?;
+  (on_new_user)(&conn, &rd, data, remote_data, creator, uid)?;
 
   Ok(uid)
 }
@@ -88,6 +90,7 @@ pub fn phantom_user(
       &Connection,
       &RegistrationData,
       Option<String>,
+      Option<serde_json::Value>, // <- remote_data
       Option<i64>,
       i64,
     ) -> Result<(), error::Error>,
@@ -110,7 +113,8 @@ pub fn phantom_user(
 
   let uid = conn.last_insert_rowid();
 
-  (on_new_user)(&conn, &rd, None, None, uid)?;
+  // TODO: need to use remote note uuid??
+  (on_new_user)(&conn, &rd, None, None, None, uid)?;
 
   Ok(uid)
 }
