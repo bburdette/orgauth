@@ -82,7 +82,7 @@ pub fn new_user(
 
 pub fn phantom_user(
   conn: &Connection,
-  name: String,
+  name: &String,
   uuid: Uuid,
   active: bool,
   on_new_user: &mut Box<
