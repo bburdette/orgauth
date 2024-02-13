@@ -70,6 +70,7 @@ pub struct PhantomUser {
   pub uuid: Uuid,
   pub name: String,
   pub active: bool,
+  pub extra_login_data: serde_json::Value,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]

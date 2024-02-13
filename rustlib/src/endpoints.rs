@@ -579,19 +579,27 @@ pub async fn user_interface(
             .ok_or(error::Error::String("no user id in data field".to_string()))?,
         )?;
         let conn = dbfun::connection_open(config.db.as_path())?;
-        match dbfun::read_user_by_id(&conn, id) {
-          Err(_e) => Ok(UserResponseMessage {
-            what: UserResponse::InvalidUserId,
-            data: Option::None,
-          }),
-          Ok(userdata) => Ok(UserResponseMessage {
+        match (
+          dbfun::read_user_by_id(&conn, id),
+          (callbacks.extra_login_data)(&conn, id),
+        ) {
+          (Ok(userdata), Ok(extralogindata)) => Ok(UserResponseMessage {
             what: UserResponse::RemoteUser,
             data: Some(serde_json::to_value(PhantomUser {
               id: userdata.id,
               uuid: userdata.uuid,
               name: userdata.name,
               active: userdata.active,
+              extra_login_data: extralogindata.into(),
             })?),
+          }),
+          (Err(_e), _) => Ok(UserResponseMessage {
+            what: UserResponse::InvalidUserId,
+            data: Option::None,
+          }),
+          (_, Err(e)) => Ok(UserResponseMessage {
+            what: UserResponse::ServerError,
+            data: Some(serde_json::Value::String(e.to_string())),
           }),
         }
       }

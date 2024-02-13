@@ -84,13 +84,14 @@ pub fn phantom_user(
   conn: &Connection,
   name: &String,
   uuid: Uuid,
+  extra_login_data: Option<serde_json::Value>,
   active: bool,
   on_new_user: &mut Box<
     dyn FnMut(
       &Connection,
       &RegistrationData,
       Option<String>,
-      Option<serde_json::Value>, // <- remote_data
+      Option<serde_json::Value>,
       Option<i64>,
       i64,
     ) -> Result<(), error::Error>,
@@ -114,7 +115,7 @@ pub fn phantom_user(
   let uid = conn.last_insert_rowid();
 
   // TODO: need to use remote note uuid??
-  (on_new_user)(&conn, &rd, None, None, None, uid)?;
+  (on_new_user)(&conn, &rd, None, extra_login_data, None, uid)?;
 
   Ok(uid)
 }
