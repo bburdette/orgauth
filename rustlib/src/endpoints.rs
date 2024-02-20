@@ -37,7 +37,7 @@ pub struct Callbacks {
 }
 
 pub trait Tokener {
-  fn set(&mut self, uuid: Uuid);
+  fn set(&mut self, uuid: Uuid) -> Result<(), error::Error>;
   fn remove(&mut self);
   fn get(&self) -> Option<Uuid>;
 }
@@ -47,8 +47,9 @@ pub struct ActixTokener<'a> {
 }
 
 impl Tokener for ActixTokener<'_> {
-  fn set(&mut self, uuid: Uuid) {
-    self.session.insert("token", uuid);
+  fn set(&mut self, uuid: Uuid) -> Result<(), error::Error> {
+    self.session.insert("token", uuid)?;
+    Ok(())
   }
   fn remove(&mut self) {
     self.session.remove("token");
@@ -63,8 +64,9 @@ pub struct UuidTokener {
 }
 
 impl Tokener for UuidTokener {
-  fn set(&mut self, uuid: Uuid) {
+  fn set(&mut self, uuid: Uuid) -> Result<(), error::Error> {
     self.uuid = Some(uuid);
+    Ok(())
   }
   fn remove(&mut self) {
     self.uuid = None;
@@ -87,7 +89,7 @@ pub fn log_user_in(
   let token = Uuid::new_v4();
   // new token has no "prev"
   dbfun::add_token(&conn, uid, token, None)?;
-  tokener.set(token);
+  tokener.set(token)?;
 
   Ok(UserResponseMessage {
     what: UserResponse::LoggedIn,
