@@ -44,7 +44,6 @@ pub fn now() -> Result<i64, error::Error> {
   let nowsecs = SystemTime::now()
     .duration_since(SystemTime::UNIX_EPOCH)
     .map(|n| n.as_millis())?;
-  // let s: i64 = nowsecs.try_into()?;
   match <u128 as TryInto<i64>>::try_into(nowsecs) {
     Ok(s) => Ok(s),
     Err(e) => Err(format!("error converting time {}", e).into()),
@@ -57,11 +56,6 @@ pub fn nowms() -> Result<u128, error::Error> {
     .duration_since(SystemTime::UNIX_EPOCH)
     .map(|n| n.as_millis())?;
   Ok(nowmilis)
-  // let s: i64 = nowsecs.try_into()?;
-  // match <u64 as TryInto<i64>>::try_into(nowmilis) {
-  //   Ok(s) => Ok(s),
-  //   Err(e) => Err(format!("error converting time {}", e).into()),
-  // }
 }
 
 pub fn is_token_expired(token_expiration_ms: i64, tokendate: i64) -> bool {
