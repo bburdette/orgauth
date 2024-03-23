@@ -90,36 +90,36 @@ encodeSendMsg sm =
     case sm of
         Register registration ->
             JE.object
-                [ ( "what", JE.string "register" )
+                [ ( "what", JE.string "Register" )
                 , ( "data", Data.encodeRegistration registration )
                 ]
 
         Login login ->
             JE.object
-                [ ( "what", JE.string "login" )
+                [ ( "what", JE.string "Login" )
                 , ( "data", Data.encodeLogin login )
                 ]
 
         RSVP rsvp ->
             JE.object
-                [ ( "what", JE.string "rsvp" )
+                [ ( "what", JE.string "RSVP" )
                 , ( "data", Data.encodeRSVP rsvp )
                 ]
 
         Logout ->
             JE.object
-                [ ( "what", JE.string "logout" )
+                [ ( "what", JE.string "Logout" )
                 ]
 
         ResetPassword chpwd ->
             JE.object
-                [ ( "what", JE.string "resetpassword" )
+                [ ( "what", JE.string "ResetPassword" )
                 , ( "data", Data.encodeResetPassword chpwd )
                 ]
 
         SetPassword chpwd ->
             JE.object
-                [ ( "what", JE.string "setpassword" )
+                [ ( "what", JE.string "SetPassword" )
                 , ( "data", Data.encodeSetPassword chpwd )
                 ]
 
@@ -162,49 +162,49 @@ serverResponseDecoder =
         |> JD.andThen
             (\what ->
                 case what of
-                    "registration email sent" ->
+                    "RegistrationSent" ->
                         JD.succeed RegistrationSent
 
-                    "unregistered user" ->
+                    "UnregisteredUser" ->
                         JD.succeed UnregisteredUser
 
-                    "user exists" ->
+                    "UserExists" ->
                         JD.succeed UserExists
 
-                    "logged in" ->
+                    "LoggedIn" ->
                         JD.map LoggedIn (JD.at [ "data" ] Data.decodeLoginData)
 
-                    "logged out" ->
+                    "LoggedOut" ->
                         JD.succeed LoggedOut
 
-                    "not logged in" ->
+                    "NotLoggedIn" ->
                         JD.succeed NotLoggedIn
 
-                    "invalid user or pwd" ->
+                    "InvalidUserOrPwd" ->
                         JD.succeed InvalidUserOrPwd
 
-                    "resetpasswordack" ->
+                    "ResetPasswordAck" ->
                         JD.succeed ResetPasswordAck
 
-                    "setpasswordack" ->
+                    "SetPasswordAck" ->
                         JD.succeed SetPasswordAck
 
-                    "changed password" ->
+                    "ChangedPassword" ->
                         JD.succeed ChangedPassword
 
-                    "changed email" ->
+                    "ChangedEmail" ->
                         JD.succeed ChangedEmail
 
-                    "user name should not be blank" ->
+                    "BlankUserName" ->
                         JD.succeed BlankUserName
 
-                    "password should not be blank" ->
+                    "BlankPassword" ->
                         JD.succeed BlankPassword
 
-                    "user invite" ->
+                    "Invite" ->
                         JD.map Invite (JD.at [ "data" ] Data.decodeUserInvite)
 
-                    "server error" ->
+                    "ServerError" ->
                         JD.map ServerError (JD.at [ "data" ] JD.string)
 
                     wat ->

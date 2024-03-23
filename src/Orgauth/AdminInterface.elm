@@ -17,10 +17,10 @@ type ServerResponse
     = Users (List Data.LoginData)
     | UserDeleted Int
     | UserUpdated Data.LoginData
-    | ServerError String
     | UserInvite Data.UserInvite
     | PwdReset Data.PwdReset
     | NotLoggedIn
+    | ServerError String
 
 
 showServerResponse : ServerResponse -> String
@@ -53,30 +53,30 @@ encodeSendMsg sm =
     case sm of
         GetUsers ->
             JE.object
-                [ ( "what", JE.string "getusers" )
+                [ ( "what", JE.string "GetUsers" )
                 ]
 
         DeleteUser id ->
             JE.object
-                [ ( "what", JE.string "deleteuser" )
+                [ ( "what", JE.string "DeleteUser" )
                 , ( "data", JE.int <| Data.getUserIdVal id )
                 ]
 
         UpdateUser ld ->
             JE.object
-                [ ( "what", JE.string "updateuser" )
+                [ ( "what", JE.string "UpdateUser" )
                 , ( "data", Data.encodeLoginData ld )
                 ]
 
         GetInvite gi ->
             JE.object
-                [ ( "what", JE.string "getinvite" )
+                [ ( "what", JE.string "GetInvite" )
                 , ( "data", Data.encodeGetInvite gi )
                 ]
 
         GetPwdReset id ->
             JE.object
-                [ ( "what", JE.string "getpwdreset" )
+                [ ( "what", JE.string "GetPwdReset" )
                 , ( "data", JE.int <| Data.getUserIdVal id )
                 ]
 
@@ -88,25 +88,25 @@ serverResponseDecoder =
         |> JD.andThen
             (\what ->
                 case what of
-                    "users" ->
+                    "Users" ->
                         JD.map Users (JD.at [ "data" ] (JD.list Data.decodeLoginData))
 
-                    "user deleted" ->
+                    "UserDeleted" ->
                         JD.map UserDeleted (JD.at [ "data" ] JD.int)
 
-                    "user updated" ->
+                    "UserUpdated" ->
                         JD.map UserUpdated (JD.at [ "data" ] Data.decodeLoginData)
 
-                    "user invite" ->
+                    "UserInvite" ->
                         JD.map UserInvite (JD.at [ "data" ] Data.decodeUserInvite)
 
-                    "pwd reset" ->
+                    "PwdReset" ->
                         JD.map PwdReset (JD.at [ "data" ] Data.decodePwdReset)
 
-                    "not logged in" ->
+                    "NotLoggedIn" ->
                         JD.succeed NotLoggedIn
 
-                    "server error" ->
+                    "ServerError" ->
                         JD.map ServerError (JD.at [ "data" ] JD.string)
 
                     wat ->

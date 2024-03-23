@@ -17,11 +17,13 @@ pub struct Config {
   pub open_registration: bool,
   pub send_emails: bool,
   pub non_admin_invite: bool,
+  pub remote_registration: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LoginData {
   pub userid: i64,
+  pub uuid: Uuid,
   pub name: String,
   pub email: String,
   pub admin: bool,
@@ -34,6 +36,7 @@ pub struct AdminSettings {
   pub open_registration: bool,
   pub send_emails: bool,
   pub non_admin_invite: bool,
+  pub remote_registration: bool,
 }
 
 pub fn admin_settings(config: &Config) -> AdminSettings {
@@ -41,12 +44,14 @@ pub fn admin_settings(config: &Config) -> AdminSettings {
     open_registration: config.open_registration,
     send_emails: config.send_emails,
     non_admin_invite: config.non_admin_invite,
+    remote_registration: config.remote_registration,
   }
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct User {
   pub id: i64,
+  pub uuid: Uuid,
   pub name: String,
   pub hashwd: String,
   pub salt: String,
@@ -54,6 +59,18 @@ pub struct User {
   pub registration_key: Option<String>,
   pub admin: bool,
   pub active: bool,
+  pub remote_url: Option<String>,
+  pub cookie: Option<String>,
+}
+
+// Represents a remote user that is not registered on this server.
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct PhantomUser {
+  pub id: i64,
+  pub uuid: Uuid,
+  pub name: String,
+  pub active: bool,
+  pub extra_login_data: serde_json::Value,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
@@ -76,6 +93,7 @@ pub struct RegistrationData {
   pub uid: String,
   pub pwd: String,
   pub email: String,
+  pub remote_url: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -86,7 +104,7 @@ pub struct RSVP {
   pub invite: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Login {
   pub uid: String,
   pub pwd: String,
@@ -122,8 +140,90 @@ pub struct ChangeEmail {
   pub email: String,
 }
 
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq)]
+pub enum UserRequest {
+  Register,
+  Login,
+  GetInvite,
+  ReadInvite,
+  RSVP,
+  ResetPassword,
+  SetPassword,
+  Logout,
+  ChangePassword,
+  ChangeEmail,
+  ReadRemoteUser,
+}
+
 #[derive(Deserialize, Serialize, Debug)]
-pub struct WhatMessage {
-  pub what: String,
+pub struct UserRequestMessage {
+  pub what: UserRequest,
+  pub data: Option<serde_json::Value>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub enum UserResponse {
+  RegistrationSent,
+  UserExists,
+  UnregisteredUser,
+  InvalidUserOrPwd,
+  InvalidUserId,
+  BlankUserName,
+  BlankPassword,
+  NotLoggedIn,
+  AccountDeactivated,
+  LoggedIn,
+  LoggedOut,
+  ChangedPassword,
+  ChangedEmail,
+  ResetPasswordAck,
+  SetPasswordAck,
+  Invite,
+  RemoteRegistrationFailed,
+  RemoteUser,
+  NoData,
+  ServerError,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct UserResponseMessage {
+  pub what: UserResponse,
+  pub data: Option<serde_json::Value>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub enum AdminRequest {
+  GetUsers,
+  DeleteUser,
+  UpdateUser,
+  GetInvite,
+  GetPwdReset,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct AdminRequestMessage {
+  pub what: AdminRequest,
+  pub data: Option<serde_json::Value>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub enum AdminResponse {
+  Users,
+  UserDeleted,
+  UserNotDeleted,
+  NoUserId,
+  NoData,
+  UserUpdated,
+  ServerError,
+  UserInvite,
+  PwdReset,
+  NotLoggedIn,
+  InvalidUserOrPassword,
+  AccessDenied,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct AdminResponseMessage {
+  pub what: AdminResponse,
   pub data: Option<serde_json::Value>,
 }

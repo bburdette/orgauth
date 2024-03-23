@@ -256,3 +256,94 @@ pub fn udpate7(dbfile: &Path) -> Result<(), error::Error> {
 
   Ok(())
 }
+
+pub fn udpate8(dbfile: &Path) -> Result<(), error::Error> {
+  // db connection without foreign key checking.
+  let conn = Connection::open(dbfile)?;
+  conn.execute("PRAGMA foreign_keys = false;", params![])?;
+  let mut m1 = Migration::new();
+
+  // temp table for user data.
+  m1.create_table("orgauth_user_temp", |t| {
+    t.add_column(
+      "id",
+      types::integer()
+        .primary(true)
+        .increments(true)
+        .nullable(false),
+    );
+    t.add_column("name", types::text().nullable(false).unique(true));
+    t.add_column("uuid", types::text().nullable(true).unique(true));
+    t.add_column("hashwd", types::text().nullable(false));
+    t.add_column("salt", types::text().nullable(false));
+    t.add_column("email", types::text().nullable(false));
+    t.add_column("registration_key", types::text().nullable(true));
+    t.add_column("admin", types::boolean().nullable(false));
+    t.add_column("active", types::boolean().nullable(false));
+    t.add_column("createdate", types::integer().nullable(false));
+  });
+
+  conn.execute_batch(m1.make::<Sqlite>().as_str())?;
+
+  // copy everything from temp.
+  conn.execute(
+    "insert into orgauth_user_temp (id, name, hashwd, salt, email, registration_key, admin, active, createdate)
+        select id, name, hashwd, salt, email, registration_key, admin, active, createdate from orgauth_user",
+    params![],
+  )?;
+
+  // now make uuids for all users.
+  let mut pstmt = conn.prepare("select id from orgauth_user_temp")?;
+  let ids: Vec<i64> = pstmt
+    .query_map(params![], |row| Ok(row.get(0)?))?
+    .filter_map(|x| x.ok())
+    .collect();
+
+  // this is horrifically slow
+  for id in ids {
+    let uuid = uuid::Uuid::new_v4();
+
+    conn.execute(
+      "update orgauth_user_temp set uuid = ?1 where id = ?2",
+      params![uuid.to_string(), id],
+    )?;
+
+    println!("updated user {} {}", id, uuid);
+  }
+
+  let mut m2 = Migration::new();
+  m2.drop_table("orgauth_user");
+
+  m2.create_table("orgauth_user", |t| {
+    t.add_column(
+      "id",
+      types::integer()
+        .primary(true)
+        .increments(true)
+        .nullable(false),
+    );
+    t.add_column("name", types::text().nullable(false).unique(true));
+    t.add_column("uuid", types::text().nullable(false).unique(true));
+    t.add_column("hashwd", types::text().nullable(false));
+    t.add_column("salt", types::text().nullable(false));
+    t.add_column("email", types::text().nullable(false));
+    t.add_column("registration_key", types::text().nullable(true));
+    t.add_column("admin", types::boolean().nullable(false));
+    t.add_column("active", types::boolean().nullable(false));
+    t.add_column("remote_url", types::text().nullable(true));
+    t.add_column("cookie", types::text().nullable(true));
+    t.add_column("createdate", types::integer().nullable(false));
+  });
+
+  conn.execute_batch(m2.make::<Sqlite>().as_str())?;
+
+  conn.execute(
+    "insert into orgauth_user (id, name, uuid, hashwd, salt, email, registration_key, admin, active, createdate)
+        select id, name, uuid, hashwd, salt, email, registration_key, admin, active, createdate from orgauth_user_temp",
+    params![],
+  )?;
+
+  conn.execute("drop table orgauth_user_temp", params![])?;
+
+  Ok(())
+}

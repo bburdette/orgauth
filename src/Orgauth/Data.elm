@@ -20,6 +20,7 @@ type alias Registration =
     { uid : String
     , pwd : String
     , email : String
+    , remoteUrl : String
     }
 
 
@@ -69,6 +70,7 @@ type alias ChangeEmail =
 
 type alias LoginData =
     { userid : UserId
+    , uuid : UUID
     , name : String
     , email : String
     , admin : Bool
@@ -88,6 +90,7 @@ type alias AdminSettings =
     { openRegistration : Bool
     , sendEmails : Bool
     , nonAdminInvite : Bool
+    , remoteRegistration : Bool
     }
 
 
@@ -126,11 +129,12 @@ decodeUserId =
 
 
 encodeRegistration : Registration -> JE.Value
-encodeRegistration l =
+encodeRegistration r =
     JE.object
-        [ ( "uid", JE.string l.uid )
-        , ( "pwd", JE.string l.pwd )
-        , ( "email", JE.string l.email )
+        [ ( "uid", JE.string r.uid )
+        , ( "pwd", JE.string r.pwd )
+        , ( "email", JE.string r.email )
+        , ( "remote_url", JE.string r.remoteUrl )
         ]
 
 
@@ -188,6 +192,7 @@ decodeLoginData : JD.Decoder LoginData
 decodeLoginData =
     JD.succeed LoginData
         |> andMap (JD.field "userid" JD.int |> JD.map makeUserId)
+        |> andMap (JD.field "uuid" UUID.jsonDecoder)
         |> andMap (JD.field "name" JD.string)
         |> andMap (JD.field "email" JD.string)
         |> andMap (JD.field "admin" JD.bool)
@@ -199,6 +204,7 @@ encodeLoginData : LoginData -> JE.Value
 encodeLoginData ld =
     JE.object
         [ ( "userid", JE.int <| getUserIdVal ld.userid )
+        , ( "uuid", UUID.toValue ld.uuid )
         , ( "name", JE.string ld.name )
         , ( "email", JE.string ld.email )
         , ( "admin", JE.bool ld.admin )
@@ -213,6 +219,7 @@ decodeAdminSettings =
         |> andMap (JD.field "open_registration" JD.bool)
         |> andMap (JD.field "send_emails" JD.bool)
         |> andMap (JD.field "non_admin_invite" JD.bool)
+        |> andMap (JD.field "remote_registration" JD.bool)
 
 
 encodeGetInvite : GetInvite -> JE.Value
@@ -245,9 +252,10 @@ decodePwdReset =
 ------------------------------------------------
 
 
-toLd : { a | userid : UserId, name : String, email : String, admin : Bool, active : Bool } -> LoginData
+toLd : { a | userid : UserId, uuid : UUID, name : String, email : String, admin : Bool, active : Bool } -> LoginData
 toLd ld =
     { userid = ld.userid
+    , uuid = ld.uuid
     , name = ld.name
     , email = ld.email
     , admin = ld.admin

@@ -29,6 +29,7 @@ type alias Model =
     { userId : String
     , password : String
     , email : String
+    , remoteUrl : String
     , captcha : String
     , captchaQ : ( String, Int )
     , seed : Seed
@@ -46,6 +47,7 @@ type Msg
     | CaptchaUpdate String
     | PasswordUpdate String
     | EmailUpdate String
+    | RemoteUrlUpdate String
     | SetMode Mode
     | LoginPressed
     | RegisterPressed
@@ -92,6 +94,7 @@ initialModel mblogin adminSettings appname seed =
     { userId = uid
     , password = pwd
     , email = ""
+    , remoteUrl = ""
     , captcha = ""
     , captchaQ = ( cq, cans )
     , seed = newseed
@@ -191,7 +194,7 @@ view style size model =
             [ centerX
             , centerY
             , width <| maximum 450 fill
-            , height <| maximum 420 fill
+            , height <| maximum 450 fill
             , Background.color (Common.navbarColor 1)
             , Border.rounded 10
             , padding 10
@@ -274,7 +277,7 @@ resetView style model =
             { onChange = IdUpdate
             , text = model.userId
             , placeholder = Nothing
-            , label = Input.labelLeft [] <| text "User id:"
+            , label = Input.labelLeft [] <| text "user id:"
             }
         , text model.responseMessage
         , Input.button (buttonStyle ++ [ width fill, alignBottom ])
@@ -302,12 +305,24 @@ registrationView style model =
             , label = Input.labelLeft [] <| text "password: "
             , show = False
             }
+
+        -- TODO prevent both email and remoteUrl??
         , if model.adminSettings.sendEmails then
             Input.email []
                 { onChange = EmailUpdate
                 , text = model.email
                 , placeholder = Nothing
                 , label = Input.labelLeft [] <| text "email:"
+                }
+
+          else
+            none
+        , if model.adminSettings.remoteRegistration then
+            Input.email []
+                { onChange = RemoteUrlUpdate
+                , text = model.remoteUrl
+                , placeholder = Nothing
+                , label = Input.labelLeft [] <| text "remote url:"
                 }
 
           else
@@ -367,11 +382,14 @@ update msg model =
         IdUpdate id ->
             ( { model | userId = id, sent = False }, None )
 
+        PasswordUpdate txt ->
+            ( { model | password = txt, sent = False }, None )
+
         EmailUpdate txt ->
             ( { model | email = txt, sent = False }, None )
 
-        PasswordUpdate txt ->
-            ( { model | password = txt, sent = False }, None )
+        RemoteUrlUpdate txt ->
+            ( { model | remoteUrl = txt, sent = False }, None )
 
         CaptchaUpdate txt ->
             ( { model | captcha = txt, sent = False }, None )
