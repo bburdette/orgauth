@@ -43,10 +43,10 @@ pub fn get_rand_string(len: usize) -> String {
 pub fn now() -> Result<i64, error::Error> {
   let nowsecs = SystemTime::now()
     .duration_since(SystemTime::UNIX_EPOCH)
-    .map(|n| n.as_secs())?;
+    .map(|n| n.as_millis())?;
   // let s: i64 = nowsecs.try_into()?;
-  match <u64 as TryInto<i64>>::try_into(nowsecs) {
-    Ok(s) => Ok(s * 1000),
+  match <u128 as TryInto<i64>>::try_into(nowsecs) {
+    Ok(s) => Ok(s),
     Err(e) => Err(format!("error converting time {}", e).into()),
   }
 }
