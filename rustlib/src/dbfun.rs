@@ -656,8 +656,16 @@ pub fn purge_tokens(config: &Config) -> Result<(), error::Error> {
 
 pub fn update_user(conn: &Connection, user: &User) -> Result<(), error::Error> {
   conn.execute(
-    "update orgauth_user set name = ?1, hashwd = ?2, salt = ?3, email = ?4, registration_key = ?5, admin = ?6, active = ?7
-           where id = ?8",
+    "update orgauth_user set
+       name = ?1,
+       hashwd = ?2,
+       salt = ?3,
+       email = ?4,
+       registration_key = ?5,
+       admin = ?6,
+       active = ?7,
+       cookie = ?8
+     where id = ?9",
     params![
       user.name.to_lowercase(),
       user.hashwd,
@@ -666,6 +674,7 @@ pub fn update_user(conn: &Connection, user: &User) -> Result<(), error::Error> {
       user.registration_key,
       user.admin,
       user.active,
+      user.cookie,
       user.id,
     ],
   )?;
