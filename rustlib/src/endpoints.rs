@@ -204,7 +204,6 @@ pub async fn user_interface(
             })?),
           };
           let res = client.post(&rd.remote_url).json(&l).send().await?;
-          println!("post res: {:?}", res);
           let cookie = match res.headers().get(reqwest::header::SET_COOKIE) {
             Some(ck) => Some(
               ck.to_str()
@@ -214,14 +213,9 @@ pub async fn user_interface(
             None => None,
           };
 
-          // println!("post res text: {:?}", res.text().await);
-          // if let wm  = res.json().into::<UserResponseMessage>()? {
           let wm = serde_json::from_value::<UserResponseMessage>(res.json().await?)?;
           if let Some(d) = wm.data {
             let ld = serde_json::from_value::<LoginData>(d)?;
-
-            // got login data!
-            println!("login data {:?}", ld);
 
             // make a local user record.
             // write a user record.
