@@ -35,12 +35,17 @@ pub fn new_user(
   registration_key: Option<String>,
   data: Option<String>,
   admin: bool,
+  uuid: Option<Uuid>,
   creator: Option<i64>,
+  remote_url: Option<String>,
+  remote_data: Option<serde_json::Value>,
+  cookie: Option<String>,
   on_new_user: &mut Box<
     dyn FnMut(
       &Connection,
       &RegistrationData,
       Option<String>,
+      Option<serde_json::Value>, // <- remote_data
       Option<i64>,
       i64,
     ) -> Result<(), error::Error>,
@@ -49,17 +54,68 @@ pub fn new_user(
   let now = now()?;
   let salt = salt_string();
   let hashwd = sha256::digest((rd.pwd.clone() + salt.as_str()).into_bytes().as_slice());
+  let uuid = match uuid {
+    None => uuid::Uuid::new_v4(),
+    Some(uuid) => uuid,
+  };
+
+  match (&cookie, &remote_url) {
+    (Some(_), Some(_)) => (),
+    (None, None) => (),
+    (Some(_), None) => return Err("remote_url required with cookie".into()),
+    (None, Some(_)) => return Err("cookie required with remote_url".into()),
+  }
 
   // make a user record.
   conn.execute(
-    "insert into orgauth_user (name, hashwd, salt, email, admin, active, registration_key, createdate)
-      values (?1, ?2, ?3, ?4, ?5, 1, ?6, ?7)",
-    params![rd.uid.to_lowercase(), hashwd, salt, rd.email, admin, registration_key, now],
+    "insert into orgauth_user (name, uuid, hashwd, salt, email, admin, active, registration_key, remote_url, cookie, createdate)
+      values (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, ?8, ?9, ?10)",
+    params![rd.uid.to_lowercase(), uuid.to_string(), hashwd, salt, rd.email, admin, registration_key, remote_url, cookie, now],
   )?;
 
   let uid = conn.last_insert_rowid();
 
-  (on_new_user)(&conn, &rd, data, creator, uid)?;
+  (on_new_user)(&conn, &rd, data, remote_data, creator, uid)?;
+
+  Ok(uid)
+}
+
+pub fn phantom_user(
+  conn: &Connection,
+  name: &String,
+  uuid: Uuid,
+  extra_login_data: Option<serde_json::Value>,
+  active: bool,
+  on_new_user: &mut Box<
+    dyn FnMut(
+      &Connection,
+      &RegistrationData,
+      Option<String>,
+      Option<serde_json::Value>,
+      Option<i64>,
+      i64,
+    ) -> Result<(), error::Error>,
+  >,
+) -> Result<i64, error::Error> {
+  let now = now()?;
+  let rd = RegistrationData {
+    uid: name.to_lowercase(),
+    pwd: "".to_string(),
+    email: "".to_string(),
+    remote_url: "".to_string(),
+  };
+
+  // make a user record.
+  conn.execute(
+    "insert into orgauth_user (name, uuid, hashwd, salt, email, admin, active, registration_key, createdate)
+      values (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8)",
+    params![name.to_lowercase(), uuid.to_string(), "phantom", "phantom", "phantom", active,"phantom", now],
+  )?;
+
+  let uid = conn.last_insert_rowid();
+
+  // TODO: need to use remote note uuid??
+  (on_new_user)(&conn, &rd, None, extra_login_data, None, uid)?;
 
   Ok(uid)
 }
@@ -79,6 +135,7 @@ pub fn login_data(conn: &Connection, uid: i64) -> Result<LoginData, error::Error
   let user = read_user_by_id(&conn, uid)?;
   Ok(LoginData {
     userid: uid,
+    uuid: user.uuid,
     name: user.name,
     email: user.email,
     admin: user.admin,
@@ -97,6 +154,7 @@ pub fn login_data_cb(
   let user = read_user_by_id(&conn, uid)?;
   Ok(LoginData {
     userid: uid,
+    uuid: user.uuid,
     name: user.name,
     email: user.email,
     admin: user.admin,
@@ -141,20 +199,23 @@ pub fn read_users(
 }
 
 pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, error::Error> {
-  let user = conn.query_row(
-    "select id, hashwd, salt, email, registration_key, admin, active
+  let user = conn.query_row_and_then(
+    "select id, uuid, hashwd, salt, email, registration_key, admin, active, remote_url, cookie
       from orgauth_user where name = ?1",
     params![name.to_lowercase()],
     |row| {
-      Ok(User {
+      Ok::<_, error::Error>(User {
         id: row.get(0)?,
+        uuid: Uuid::parse_str(row.get::<usize, String>(1)?.as_str())?,
         name: name.to_lowercase(),
-        hashwd: row.get(1)?,
-        salt: row.get(2)?,
-        email: row.get(3)?,
-        registration_key: row.get(4)?,
-        admin: row.get(5)?,
-        active: row.get(6)?,
+        hashwd: row.get(2)?,
+        salt: row.get(3)?,
+        email: row.get(4)?,
+        registration_key: row.get(5)?,
+        admin: row.get(6)?,
+        active: row.get(7)?,
+        remote_url: row.get(8)?,
+        cookie: row.get(9)?,
       })
     },
   )?;
@@ -163,20 +224,48 @@ pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, error::E
 }
 
 pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, error::Error> {
-  let user = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key, admin, active
+  let user = conn.query_row_and_then(
+    "select id, uuid, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie
       from orgauth_user where id = ?1",
     params![id],
     |row| {
-      Ok(User {
+      Ok::<_, error::Error>(User {
         id: row.get(0)?,
-        name: row.get(1)?,
-        hashwd: row.get(2)?,
-        salt: row.get(3)?,
-        email: row.get(4)?,
-        registration_key: row.get(5)?,
-        admin: row.get(6)?,
-        active: row.get(7)?,
+        uuid: Uuid::parse_str(row.get::<usize, String>(1)?.as_str())?,
+        name: row.get(2)?,
+        hashwd: row.get(3)?,
+        salt: row.get(4)?,
+        email: row.get(5)?,
+        registration_key: row.get(6)?,
+        admin: row.get(7)?,
+        active: row.get(8)?,
+        remote_url: row.get(9)?,
+        cookie: row.get(10)?,
+      })
+    },
+  )?;
+
+  Ok(user)
+}
+
+pub fn read_user_by_uuid(conn: &Connection, uuid: &Uuid) -> Result<User, error::Error> {
+  let user = conn.query_row_and_then(
+    "select id, uuid, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie
+      from orgauth_user where uuid = ?1",
+    params![uuid.to_string().as_str()],
+    |row| {
+      Ok::<_, error::Error>(User {
+        id: row.get(0)?,
+        uuid: Uuid::parse_str(row.get::<usize, String>(1)?.as_str())?,
+        name: row.get(2)?,
+        hashwd: row.get(3)?,
+        salt: row.get(4)?,
+        email: row.get(5)?,
+        registration_key: row.get(6)?,
+        admin: row.get(7)?,
+        active: row.get(8)?,
+        remote_url: row.get(9)?,
+        cookie: row.get(10)?,
       })
     },
   )?;
@@ -191,26 +280,29 @@ struct TokenInfo {
 }
 
 fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo), error::Error> {
-  let (user, tokendate, regendate, prevtoken) : (User, i64, Option<i64>, Option<String>) = conn.query_row(
-    "select id, name, hashwd, salt, email, registration_key, admin, active, 
+  let (user, tokendate, regendate, prevtoken) : (User, i64, Option<i64>, Option<String>) = conn.query_row_and_then(
+    "select id, uuid, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie,
         orgauth_token.tokendate, orgauth_token.regendate, orgauth_token.prevtoken
       from orgauth_user, orgauth_token where orgauth_user.id = orgauth_token.user and orgauth_token.token = ?1",
     params![token.to_string()],
     |row| {
-      Ok((
+      Ok::<_, error::Error>((
         User {
           id: row.get(0)?,
-          name: row.get(1)?,
-          hashwd: row.get(2)?,
-          salt: row.get(3)?,
-          email: row.get(4)?,
-          registration_key: row.get(5)?,
-          admin: row.get(6)?,
-          active: row.get(7)?,
+          uuid: Uuid::parse_str(row.get::<usize, String>(1)?.as_str())?,
+          name: row.get(2)?,
+          hashwd: row.get(3)?,
+          salt: row.get(4)?,
+          email: row.get(5)?,
+          registration_key: row.get(6)?,
+          admin: row.get(7)?,
+          active: row.get(8)?,
+          remote_url: row.get(9)?,
+          cookie: row.get(10)?,
         },
-        row.get(8)?,
-        row.get(9)?,
-        row.get(10)?,
+        row.get(11)?,
+        row.get(12)?,
+        row.get(13)?,
       ))
     },
   )?;
@@ -218,9 +310,9 @@ fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo
   Ok((
     user,
     TokenInfo {
-      tokendate: tokendate,
-      regendate: regendate,
-      prevtoken: prevtoken,
+      tokendate,
+      regendate,
+      prevtoken,
     },
   ))
 }
@@ -463,7 +555,7 @@ pub fn purge_login_tokens(conn: &Connection, token_expiration_ms: i64) -> Result
       Ok(PurgeToken(user, token, _tokendate, _prevtoken)) => {
         info!("purging login token for user {}", user);
         conn.execute(
-          "delete from orgauth_token where 
+          "delete from orgauth_token where
           user = ?1 and token = ?2",
           params![user, token],
         )?;
@@ -564,8 +656,16 @@ pub fn purge_tokens(config: &Config) -> Result<(), error::Error> {
 
 pub fn update_user(conn: &Connection, user: &User) -> Result<(), error::Error> {
   conn.execute(
-    "update orgauth_user set name = ?1, hashwd = ?2, salt = ?3, email = ?4, registration_key = ?5, admin = ?6, active = ?7
-           where id = ?8",
+    "update orgauth_user set
+       name = ?1,
+       hashwd = ?2,
+       salt = ?3,
+       email = ?4,
+       registration_key = ?5,
+       admin = ?6,
+       active = ?7,
+       cookie = ?8
+     where id = ?9",
     params![
       user.name.to_lowercase(),
       user.hashwd,
@@ -574,6 +674,7 @@ pub fn update_user(conn: &Connection, user: &User) -> Result<(), error::Error> {
       user.registration_key,
       user.admin,
       user.active,
+      user.cookie,
       user.id,
     ],
   )?;

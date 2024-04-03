@@ -2,6 +2,7 @@ use actix_session;
 use actix_web::error as awe;
 use lettre;
 use lettre::transport::smtp as lts;
+use reqwest;
 use rusqlite;
 use serde_json;
 use std::fmt;
@@ -16,6 +17,8 @@ pub enum Error {
   LettreSmtpError(lts::Error),
   AddressError(lettre::address::AddressError),
   IoError(std::io::Error),
+  Reqwest(reqwest::Error),
+  Uuid(uuid::Error),
 }
 
 impl std::error::Error for Error {
@@ -36,6 +39,8 @@ impl fmt::Display for Error {
       Error::LettreSmtpError(e) => write!(f, "{}", e),
       Error::AddressError(e) => write!(f, "{}", e),
       Error::IoError(e) => write!(f, "{}", e),
+      Error::Reqwest(e) => write!(f, "{}", e),
+      Error::Uuid(e) => write!(f, "{}", e),
     }
   }
 }
@@ -52,6 +57,8 @@ impl fmt::Debug for Error {
       Error::LettreSmtpError(e) => write!(f, "{}", e),
       Error::AddressError(e) => write!(f, "{}", e),
       Error::IoError(e) => write!(f, "{}", e),
+      Error::Reqwest(e) => write!(f, "{}", e),
+      Error::Uuid(e) => write!(f, "{}", e),
     }
   }
 }
@@ -116,6 +123,12 @@ impl From<std::io::Error> for Error {
   }
 }
 
+impl From<reqwest::Error> for Error {
+  fn from(e: reqwest::Error) -> Self {
+    Error::Reqwest(e)
+  }
+}
+
 impl From<actix_session::SessionGetError> for Error {
   fn from(e: actix_session::SessionGetError) -> Self {
     Error::String(e.to_string())
@@ -124,6 +137,11 @@ impl From<actix_session::SessionGetError> for Error {
 
 impl From<actix_session::SessionInsertError> for Error {
   fn from(e: actix_session::SessionInsertError) -> Self {
+    Error::String(e.to_string())
+  }
+}
+impl From<uuid::Error> for Error {
+  fn from(e: uuid::Error) -> Self {
     Error::String(e.to_string())
   }
 }

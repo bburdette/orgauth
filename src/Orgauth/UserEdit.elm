@@ -10,11 +10,13 @@ import Element.Region
 import Orgauth.Data as Data exposing (UserId)
 import TangoColors as TC
 import Time exposing (Zone)
+import UUID exposing (UUID)
 import Util
 
 
 type alias Model =
     { name : String
+    , uuid : Maybe UUID
     , email : String
     , admin : Bool
     , active : Bool
@@ -46,6 +48,7 @@ type Command
 init : Data.LoginData -> Model
 init ld =
     { name = ld.name
+    , uuid = Just ld.uuid
     , email = ld.email
     , admin = ld.admin
     , active = ld.active
@@ -56,6 +59,7 @@ init ld =
 initNew : Model
 initNew =
     { name = ""
+    , uuid = Nothing
     , email = ""
     , admin = False
     , active = False
@@ -179,6 +183,7 @@ update msg model =
                         ( model
                         , Save
                             { userid = ld.userid
+                            , uuid = ld.uuid
                             , name = model.name
                             , email = model.email
                             , admin = model.admin
