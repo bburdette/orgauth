@@ -180,17 +180,17 @@ update msg model =
             model.initialUser
                 |> Maybe.map
                     (\ld ->
-                                    ( model
-                                    , Save
-                                        { userid = ld.userid
-                                        , uuid = ld.uuid
-                                        , name = model.name
-                                        , email = model.email
-                                        , admin = model.admin
-                                        , active = model.active
-                                        , data = ld.data
-                                        }
-                                    )
+                        ( model
+                        , Save
+                            { userid = ld.userid
+                            , uuid = ld.uuid
+                            , name = model.name
+                            , email = model.email
+                            , admin = model.admin
+                            , active = model.active
+                            , data = ld.data
+                            }
+                        )
                     )
                 |> Maybe.withDefault ( model, None )
 
