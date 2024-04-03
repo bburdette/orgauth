@@ -101,6 +101,7 @@ pub async fn user_interface(
   tokener: &mut dyn Tokener,
   config: &Config,
   callbacks: &mut Callbacks,
+  user_uri_path: Option<String>,
   msg: UserRequestMessage,
 ) -> Result<UserResponseMessage, error::Error> {
   let conn = dbfun::connection_open(config.db.as_path())?;
@@ -194,6 +195,15 @@ pub async fn user_interface(
 
         // are we doing remote registration?
         if config.remote_registration && rd.remote_url != "" {
+          let user_uri_path = match user_uri_path {
+            Some(s) => s,
+            None => {
+              return Ok(UserResponseMessage {
+                what: UserResponse::RemoteRegistrationFailed,
+                data: None,
+              })
+            }
+          };
           // try to log in to an existing account on the remote!
           let client = reqwest::Client::new();
           let l = UserRequestMessage {
@@ -203,7 +213,12 @@ pub async fn user_interface(
               pwd: rd.pwd.clone(),
             })?),
           };
-          let res = client.post(&rd.remote_url).json(&l).send().await?;
+
+          // TODO: this uri is dependent on the remote app!
+          // which should be the same as this app, but still.
+          let user_uri = format!("{}/{}", rd.remote_url, user_uri_path);
+
+          let res = client.post(user_uri).json(&l).send().await?;
           let cookie = match res.headers().get(reqwest::header::SET_COOKIE) {
             Some(ck) => Some(
               ck.to_str()
