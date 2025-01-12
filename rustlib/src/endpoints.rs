@@ -98,13 +98,13 @@ pub fn log_user_in(
 }
 
 pub async fn user_interface(
+  conn: &Connection,
   tokener: &mut dyn Tokener,
   config: &Config,
   callbacks: &mut Callbacks,
   user_uri_path: Option<String>,
   msg: UserRequestMessage,
 ) -> Result<UserResponseMessage, error::Error> {
-  let conn = dbfun::connection_open(config.db.as_path())?;
   if msg.what == UserRequest::Register {
     let msgdata = Option::ok_or(msg.data, "malformed registration data")?;
     let rd: RegistrationData = serde_json::from_value(msgdata)?;
