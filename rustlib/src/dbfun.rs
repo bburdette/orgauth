@@ -38,14 +38,14 @@ pub fn new_user(
   uuid: Option<Uuid>,
   creator: Option<i64>,
   remote_url: Option<String>,
-  remote_data: Option<serde_json::Value>,
+  remote_data: Option<String>,
   cookie: Option<String>,
   on_new_user: &mut Box<
     dyn FnMut(
       &Connection,
       &RegistrationData,
       Option<String>,
-      Option<serde_json::Value>, // <- remote_data
+      Option<String>, // <- remote_data
       Option<i64>,
       i64,
     ) -> Result<(), error::Error>,
@@ -84,14 +84,14 @@ pub fn phantom_user(
   conn: &Connection,
   name: &String,
   uuid: Uuid,
-  extra_login_data: Option<serde_json::Value>,
+  extra_login_data: Option<String>,
   active: bool,
   on_new_user: &mut Box<
     dyn FnMut(
       &Connection,
       &RegistrationData,
       Option<String>,
-      Option<serde_json::Value>,
+      Option<String>,
       Option<i64>,
       i64,
     ) -> Result<(), error::Error>,

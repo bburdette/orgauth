@@ -23,12 +23,12 @@ use uuid::Uuid;
 pub struct Callbacks {
   pub on_new_user: Box<
     dyn FnMut(
-      &Connection,               // <- conn
-      &RegistrationData,         // <- rd
-      Option<String>,            // <- extraLoginData
-      Option<serde_json::Value>, // <- remote_data
-      Option<i64>,               // <- creator
-      i64,                       // <- uid
+      &Connection,       // <- conn
+      &RegistrationData, // <- rd
+      Option<String>,    // <- extraLoginData
+      Option<String>,    // <- remote_data
+      Option<i64>,       // <- creator
+      i64,               // <- uid
     ) -> Result<(), error::Error>,
   >,
   pub extra_login_data:
@@ -245,7 +245,7 @@ pub async fn user_interface(
               Option::None,
               // Some(invite.creator),
               Some(rd.remote_url.clone()),
-              ld.data,
+              ld.data.map(|x| x.to_string()),
               cookie,
               &mut callbacks.on_new_user,
             )?;
