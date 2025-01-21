@@ -29,7 +29,7 @@ resultDecoder errDecoder okDecoder =
 
 
 type alias LoginData =
-    { userid : Int
+    { userid : UserId
     , uuid : String
     , name : String
     , email : String
@@ -42,7 +42,7 @@ type alias LoginData =
 loginDataEncoder : LoginData -> Json.Encode.Value
 loginDataEncoder struct =
     Json.Encode.object
-        [ ( "userid", (Json.Encode.int) struct.userid )
+        [ ( "userid", (userIdEncoder) struct.userid )
         , ( "uuid", (Json.Encode.string) struct.uuid )
         , ( "name", (Json.Encode.string) struct.name )
         , ( "email", (Json.Encode.string) struct.email )
@@ -71,7 +71,7 @@ adminSettingsEncoder struct =
 
 
 type alias User =
-    { id : Int
+    { id : UserId
     , uuid : String
     , name : String
     , hashwd : String
@@ -88,7 +88,7 @@ type alias User =
 userEncoder : User -> Json.Encode.Value
 userEncoder struct =
     Json.Encode.object
-        [ ( "id", (Json.Encode.int) struct.id )
+        [ ( "id", (userIdEncoder) struct.id )
         , ( "uuid", (Json.Encode.string) struct.uuid )
         , ( "name", (Json.Encode.string) struct.name )
         , ( "hashwd", (Json.Encode.string) struct.hashwd )
@@ -103,7 +103,7 @@ userEncoder struct =
 
 
 type alias PhantomUser =
-    { id : Int
+    { id : UserId
     , uuid : String
     , name : String
     , active : Bool
@@ -114,7 +114,7 @@ type alias PhantomUser =
 phantomUserEncoder : PhantomUser -> Json.Encode.Value
 phantomUserEncoder struct =
     Json.Encode.object
-        [ ( "id", (Json.Encode.int) struct.id )
+        [ ( "id", (userIdEncoder) struct.id )
         , ( "uuid", (Json.Encode.string) struct.uuid )
         , ( "name", (Json.Encode.string) struct.name )
         , ( "active", (Json.Encode.bool) struct.active )
@@ -127,7 +127,7 @@ type alias UserInvite =
     , token : String
     , url : String
     , data : Maybe (String)
-    , creator : Int
+    , creator : UserId
     }
 
 
@@ -138,7 +138,7 @@ userInviteEncoder struct =
         , ( "token", (Json.Encode.string) struct.token )
         , ( "url", (Json.Encode.string) struct.url )
         , ( "data", (Maybe.withDefault Json.Encode.null << Maybe.map (Json.Encode.string)) struct.data )
-        , ( "creator", (Json.Encode.int) struct.creator )
+        , ( "creator", (userIdEncoder) struct.creator )
         ]
 
 
@@ -219,7 +219,7 @@ resetPasswordEncoder struct =
 
 
 type alias PwdReset =
-    { userid : Int
+    { userid : UserId
     , url : String
     }
 
@@ -227,7 +227,7 @@ type alias PwdReset =
 pwdResetEncoder : PwdReset -> Json.Encode.Value
 pwdResetEncoder struct =
     Json.Encode.object
-        [ ( "userid", (Json.Encode.int) struct.userid )
+        [ ( "userid", (userIdEncoder) struct.userid )
         , ( "url", (Json.Encode.string) struct.url )
         ]
 
@@ -311,7 +311,7 @@ type AuthedRequest
     = AthGetInvite (GetInvite)
     | AthChangePassword (ChangePassword)
     | AthChangeEmail (ChangeEmail)
-    | AthReadRemoteUser (Int)
+    | AthReadRemoteUser (UserId)
 
 
 authedRequestEncoder : AuthedRequest -> Json.Encode.Value
@@ -324,7 +324,7 @@ authedRequestEncoder enum =
         AthChangeEmail inner ->
             Json.Encode.object [ ( "AthChangeEmail", changeEmailEncoder inner ) ]
         AthReadRemoteUser inner ->
-            Json.Encode.object [ ( "AthReadRemoteUser", Json.Encode.int inner ) ]
+            Json.Encode.object [ ( "AthReadRemoteUser", userIdEncoder inner ) ]
 
 type UserResponse
     = UrpRegistrationSent
@@ -395,10 +395,10 @@ userResponseEncoder enum =
 
 type AdminRequest
     = ArqGetUsers
-    | ArqDeleteUser (Int)
+    | ArqDeleteUser (UserId)
     | ArqUpdateUser (LoginData)
     | ArqGetInvite (GetInvite)
-    | ArqGetPwdReset (Int)
+    | ArqGetPwdReset (UserId)
 
 
 adminRequestEncoder : AdminRequest -> Json.Encode.Value
@@ -407,18 +407,18 @@ adminRequestEncoder enum =
         ArqGetUsers ->
             Json.Encode.string "ArqGetUsers"
         ArqDeleteUser inner ->
-            Json.Encode.object [ ( "ArqDeleteUser", Json.Encode.int inner ) ]
+            Json.Encode.object [ ( "ArqDeleteUser", userIdEncoder inner ) ]
         ArqUpdateUser inner ->
             Json.Encode.object [ ( "ArqUpdateUser", loginDataEncoder inner ) ]
         ArqGetInvite inner ->
             Json.Encode.object [ ( "ArqGetInvite", getInviteEncoder inner ) ]
         ArqGetPwdReset inner ->
-            Json.Encode.object [ ( "ArqGetPwdReset", Json.Encode.int inner ) ]
+            Json.Encode.object [ ( "ArqGetPwdReset", userIdEncoder inner ) ]
 
 type AdminResponse
     = ArpUsers (List (LoginData))
-    | ArpUserDeleted (Int)
-    | ArpUserNotDeleted (Int)
+    | ArpUserDeleted (UserId)
+    | ArpUserNotDeleted (UserId)
     | ArpNoUserId
     | ArpNoData
     | ArpUserUpdated (LoginData)
@@ -436,9 +436,9 @@ adminResponseEncoder enum =
         ArpUsers inner ->
             Json.Encode.object [ ( "ArpUsers", Json.Encode.list (loginDataEncoder) inner ) ]
         ArpUserDeleted inner ->
-            Json.Encode.object [ ( "ArpUserDeleted", Json.Encode.int inner ) ]
+            Json.Encode.object [ ( "ArpUserDeleted", userIdEncoder inner ) ]
         ArpUserNotDeleted inner ->
-            Json.Encode.object [ ( "ArpUserNotDeleted", Json.Encode.int inner ) ]
+            Json.Encode.object [ ( "ArpUserNotDeleted", userIdEncoder inner ) ]
         ArpNoUserId ->
             Json.Encode.string "ArpNoUserId"
         ArpNoData ->
@@ -461,7 +461,7 @@ adminResponseEncoder enum =
 loginDataDecoder : Json.Decode.Decoder LoginData
 loginDataDecoder =
     Json.Decode.succeed LoginData
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "userid" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "userid" (userIdDecoder)))
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "uuid" (Json.Decode.string)))
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "name" (Json.Decode.string)))
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "email" (Json.Decode.string)))
@@ -482,7 +482,7 @@ adminSettingsDecoder =
 userDecoder : Json.Decode.Decoder User
 userDecoder =
     Json.Decode.succeed User
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "id" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "id" (userIdDecoder)))
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "uuid" (Json.Decode.string)))
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "name" (Json.Decode.string)))
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "hashwd" (Json.Decode.string)))
@@ -498,7 +498,7 @@ userDecoder =
 phantomUserDecoder : Json.Decode.Decoder PhantomUser
 phantomUserDecoder =
     Json.Decode.succeed PhantomUser
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "id" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "id" (userIdDecoder)))
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "uuid" (Json.Decode.string)))
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "name" (Json.Decode.string)))
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "active" (Json.Decode.bool)))
@@ -512,7 +512,7 @@ userInviteDecoder =
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "token" (Json.Decode.string)))
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "url" (Json.Decode.string)))
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "data" (Json.Decode.nullable (Json.Decode.string))))
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "creator" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "creator" (userIdDecoder)))
 
 
 getInviteDecoder : Json.Decode.Decoder GetInvite
@@ -556,7 +556,7 @@ resetPasswordDecoder =
 pwdResetDecoder : Json.Decode.Decoder PwdReset
 pwdResetDecoder =
     Json.Decode.succeed PwdReset
-        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "userid" (Json.Decode.int)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "userid" (userIdDecoder)))
         |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "url" (Json.Decode.string)))
 
 
@@ -609,7 +609,7 @@ authedRequestDecoder =
         [ Json.Decode.map AthGetInvite (Json.Decode.field "AthGetInvite" (getInviteDecoder))
         , Json.Decode.map AthChangePassword (Json.Decode.field "AthChangePassword" (changePasswordDecoder))
         , Json.Decode.map AthChangeEmail (Json.Decode.field "AthChangeEmail" (changeEmailDecoder))
-        , Json.Decode.map AthReadRemoteUser (Json.Decode.field "AthReadRemoteUser" (Json.Decode.int))
+        , Json.Decode.map AthReadRemoteUser (Json.Decode.field "AthReadRemoteUser" (userIdDecoder))
         ]
 
 userResponseDecoder : Json.Decode.Decoder UserResponse
@@ -777,18 +777,18 @@ adminRequestDecoder =
                         unexpected ->
                             Json.Decode.fail <| "Unexpected variant " ++ unexpected
                 )
-        , Json.Decode.map ArqDeleteUser (Json.Decode.field "ArqDeleteUser" (Json.Decode.int))
+        , Json.Decode.map ArqDeleteUser (Json.Decode.field "ArqDeleteUser" (userIdDecoder))
         , Json.Decode.map ArqUpdateUser (Json.Decode.field "ArqUpdateUser" (loginDataDecoder))
         , Json.Decode.map ArqGetInvite (Json.Decode.field "ArqGetInvite" (getInviteDecoder))
-        , Json.Decode.map ArqGetPwdReset (Json.Decode.field "ArqGetPwdReset" (Json.Decode.int))
+        , Json.Decode.map ArqGetPwdReset (Json.Decode.field "ArqGetPwdReset" (userIdDecoder))
         ]
 
 adminResponseDecoder : Json.Decode.Decoder AdminResponse
 adminResponseDecoder = 
     Json.Decode.oneOf
         [ Json.Decode.map ArpUsers (Json.Decode.field "ArpUsers" (Json.Decode.list (loginDataDecoder)))
-        , Json.Decode.map ArpUserDeleted (Json.Decode.field "ArpUserDeleted" (Json.Decode.int))
-        , Json.Decode.map ArpUserNotDeleted (Json.Decode.field "ArpUserNotDeleted" (Json.Decode.int))
+        , Json.Decode.map ArpUserDeleted (Json.Decode.field "ArpUserDeleted" (userIdDecoder))
+        , Json.Decode.map ArpUserNotDeleted (Json.Decode.field "ArpUserNotDeleted" (userIdDecoder))
         , Json.Decode.string
             |> Json.Decode.andThen
                 (\x ->

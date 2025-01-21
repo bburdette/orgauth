@@ -1,12 +1,42 @@
 use elm_rs::{Elm, ElmDecode, ElmEncode};
 use serde_derive::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{fmt::Display, path::PathBuf};
 use uuid::Uuid;
 
-// #[derive(Elm, ElmDecode, ElmEncode, Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Copy)]
-// pub enum UserId {
-//   Uid(i64),
-// }
+#[derive(Elm, ElmDecode, ElmEncode, Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Copy)]
+pub enum UserId {
+  Uid(i64),
+}
+
+impl UserId {
+  pub fn to_i64(&self) -> &i64 {
+    match self {
+      UserId::Uid(id) => id,
+    }
+  }
+}
+
+impl Into<i64> for UserId {
+  fn into(self) -> i64 {
+    match self {
+      UserId::Uid(id) => id,
+    }
+  }
+}
+
+impl From<i64> for UserId {
+  fn from(a: i64) -> Self {
+    UserId::Uid(a)
+  }
+}
+
+impl Display for UserId {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      UserId::Uid(id) => write!(f, "{}", id),
+    }
+  }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
@@ -28,7 +58,7 @@ pub struct Config {
 
 #[derive(Elm, ElmDecode, ElmEncode, Serialize, Deserialize, Debug, Clone)]
 pub struct LoginData {
-  pub userid: i64,
+  pub userid: UserId,
   pub uuid: Uuid,
   pub name: String,
   pub email: String,
@@ -56,7 +86,7 @@ pub fn admin_settings(config: &Config) -> AdminSettings {
 
 #[derive(Elm, ElmDecode, ElmEncode, Clone, Deserialize, Serialize, Debug)]
 pub struct User {
-  pub id: i64,
+  pub id: UserId,
   pub uuid: Uuid,
   pub name: String,
   pub hashwd: String,
@@ -72,7 +102,7 @@ pub struct User {
 // Represents a remote user that is not registered on this server.
 #[derive(Elm, ElmDecode, ElmEncode, Clone, Deserialize, Serialize, Debug)]
 pub struct PhantomUser {
-  pub id: i64,
+  pub id: UserId,
   pub uuid: Uuid,
   pub name: String,
   pub active: bool,
@@ -85,7 +115,7 @@ pub struct UserInvite {
   pub token: String,
   pub url: String,
   pub data: Option<String>,
-  pub creator: i64,
+  pub creator: UserId,
 }
 
 #[derive(Elm, ElmDecode, ElmEncode, Clone, Deserialize, Serialize, Debug)]
@@ -123,7 +153,7 @@ pub struct ResetPassword {
 
 #[derive(Elm, ElmDecode, ElmEncode, Serialize, Deserialize, Debug)]
 pub struct PwdReset {
-  pub userid: i64,
+  pub userid: UserId,
   pub url: String,
 }
 
@@ -163,7 +193,7 @@ pub enum AuthedRequest {
   AthGetInvite(GetInvite),
   AthChangePassword(ChangePassword),
   AthChangeEmail(ChangeEmail),
-  AthReadRemoteUser(i64),
+  AthReadRemoteUser(UserId),
 }
 
 #[derive(Elm, ElmDecode, ElmEncode, Deserialize, Serialize, Debug)]
@@ -186,30 +216,24 @@ pub enum UserResponse {
   UrpInvite(UserInvite),
   UrpRemoteRegistrationFailed,
   UrpRemoteUser(PhantomUser),
-  UrpNoData,
+  UrpNoData, // TODO: remove?
   UrpServerError(String),
 }
 
 #[derive(Elm, ElmDecode, ElmEncode, Deserialize, Serialize, Debug)]
 pub enum AdminRequest {
   ArqGetUsers,
-  ArqDeleteUser(i64),
+  ArqDeleteUser(UserId),
   ArqUpdateUser(LoginData),
   ArqGetInvite(GetInvite),
-  ArqGetPwdReset(i64),
+  ArqGetPwdReset(UserId),
 }
-
-// #[derive(Deserialize, Serialize, Debug)]
-// pub struct AdminRequestMessage {
-//   pub what: AdminRequest,
-//   pub data: Option<serde_json::Value>,
-// }
 
 #[derive(Elm, ElmDecode, ElmEncode, Deserialize, Serialize, Debug)]
 pub enum AdminResponse {
   ArpUsers(Vec<LoginData>),
-  ArpUserDeleted(i64),
-  ArpUserNotDeleted(i64),
+  ArpUserDeleted(UserId),
+  ArpUserNotDeleted(UserId),
   ArpNoUserId,
   ArpNoData,
   ArpUserUpdated(LoginData),
@@ -220,9 +244,3 @@ pub enum AdminResponse {
   ArpInvalidUserOrPassword,
   ArpAccessDenied,
 }
-
-// #[derive(Deserialize, Serialize, Debug)]
-// pub struct AdminResponseMessage {
-//   pub what: AdminResponse,
-//   pub data: Option<serde_json::Value>,
-// }

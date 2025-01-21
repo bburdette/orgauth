@@ -1,6 +1,6 @@
 use crate::data::{
   AdminRequest, AdminResponse, AuthedRequest, Config, Login, PhantomUser, PwdReset,
-  RegistrationData, User, UserInvite, UserRequest, UserResponse,
+  RegistrationData, User, UserId, UserInvite, UserRequest, UserResponse,
 };
 use crate::dbfun;
 use crate::email;
@@ -25,13 +25,13 @@ pub struct Callbacks {
       &RegistrationData, // <- rd
       Option<String>,    // <- extraLoginData
       Option<String>,    // <- remote_data
-      Option<i64>,       // <- creator
-      i64,               // <- uid
+      Option<UserId>,    // <- creator
+      UserId,            // <- uid
     ) -> Result<(), error::Error>,
   >,
   pub extra_login_data:
-    Box<dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, error::Error>>,
-  pub on_delete_user: Box<dyn FnMut(&Connection, i64) -> Result<bool, error::Error>>,
+    Box<dyn FnMut(&Connection, UserId) -> Result<Option<serde_json::Value>, error::Error>>,
+  pub on_delete_user: Box<dyn FnMut(&Connection, UserId) -> Result<bool, error::Error>>,
 }
 
 pub trait Tokener {
@@ -78,7 +78,7 @@ pub fn log_user_in(
   tokener: &mut dyn Tokener,
   callbacks: &mut Callbacks,
   conn: &Connection,
-  uid: i64,
+  uid: UserId,
 ) -> Result<UserResponse, error::Error> {
   let mut ld = dbfun::login_data(&conn, uid)?;
   let data = (callbacks.extra_login_data)(&conn, ld.userid)?;
@@ -525,7 +525,7 @@ pub fn user_interface_loggedin(
   config: &Config,
   conn: &Connection,
   callbacks: &mut Callbacks,
-  uid: i64,
+  uid: UserId,
   msg: &AuthedRequest,
 ) -> Result<UserResponse, error::Error> {
   match msg {
