@@ -31,6 +31,7 @@ either = "1.6.1"
 
 reqwest = { version = "0.11.22", default-features = false, features = ["json", "blocking"] }
 tokio = { version = "1", features = ["full"] }
+elm_rs =  { version = "0.2.2", features = ["uuid"] }
 
 # try this vendoring if there's a tauri-android problem.
 # openssl = { version = "0.10", features = ["vendored"] }

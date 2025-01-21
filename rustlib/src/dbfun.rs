@@ -159,7 +159,7 @@ pub fn login_data_cb(
     email: user.email,
     admin: user.admin,
     active: user.active,
-    data: extra_login_data(&conn, uid)?,
+    data: extra_login_data(&conn, uid)?.map(|x| x.to_string()),
   })
 }
 
@@ -821,7 +821,7 @@ pub fn read_userinvite(
 pub fn change_password(
   conn: &Connection,
   uid: i64,
-  cp: ChangePassword,
+  cp: &ChangePassword,
 ) -> Result<(), error::Error> {
   let mut userdata = read_user_by_id(&conn, uid)?;
   match userdata.registration_key {
