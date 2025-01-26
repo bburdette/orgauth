@@ -237,7 +237,7 @@ pub enum AdminResponse {
   ArpNoUserId,
   ArpNoData,
   ArpUserUpdated(LoginData),
-  ArpServerError,
+  ArpServerError(String),
   ArpUserInvite(UserInvite),
   ArpPwdReset(PwdReset),
   ArpNotLoggedIn,
