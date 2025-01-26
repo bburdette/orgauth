@@ -92,11 +92,11 @@ pub fn phantom_user(
       &RegistrationData,
       Option<String>,
       Option<String>,
-      Option<i64>,
-      i64,
+      Option<UserId>,
+      UserId,
     ) -> Result<(), error::Error>,
   >,
-) -> Result<i64, error::Error> {
+) -> Result<UserId, error::Error> {
   let now = now()?;
   let rd = RegistrationData {
     uid: name.to_lowercase(),
@@ -112,7 +112,7 @@ pub fn phantom_user(
     params![name.to_lowercase(), uuid.to_string(), "phantom", "phantom", "phantom", active,"phantom", now],
   )?;
 
-  let uid = conn.last_insert_rowid();
+  let uid = UserId::Uid(conn.last_insert_rowid());
 
   // TODO: need to use remote note uuid??
   (on_new_user)(&conn, &rd, None, extra_login_data, None, uid)?;
@@ -121,14 +121,14 @@ pub fn phantom_user(
 }
 
 // pub fn user_id(conn: &Connection, name: &str) -> Result<i64, error::Error> {
-pub fn user_id(conn: &Connection, name: &str) -> Result<i64, error::Error> {
+pub fn user_id(conn: &Connection, name: &str) -> Result<UserId, error::Error> {
   let id: i64 = conn.query_row(
     "select id from orgauth_user
       where orgauth_user.name = ?1",
     params![name.to_lowercase()],
     |row| Ok(row.get(0)?),
   )?;
-  Ok(id)
+  Ok(UserId::Uid(id))
 }
 
 pub fn login_data(conn: &Connection, uid: UserId) -> Result<LoginData, error::Error> {

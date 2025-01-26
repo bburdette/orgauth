@@ -8,7 +8,7 @@ import Element.Font as EF
 import Element.Input as EI
 import Element.Region
 import GenDialog as GD
-import Orgauth.Data as Data
+import Orgauth.Data as Data exposing (LoginData)
 import TangoColors as TC
 import Time exposing (Zone)
 import Util

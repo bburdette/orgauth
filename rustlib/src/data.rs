@@ -1,4 +1,5 @@
 use elm_rs::{Elm, ElmDecode, ElmEncode};
+use rusqlite::types::FromSql;
 use serde_derive::{Deserialize, Serialize};
 use std::{fmt::Display, path::PathBuf};
 use uuid::Uuid;

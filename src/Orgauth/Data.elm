@@ -3,7 +3,6 @@
 
 module Orgauth.Data exposing (..)
 
-import Dict exposing (Dict)
 import Json.Decode
 import Json.Encode
 import Orgauth.UserId exposing (..)
@@ -458,7 +457,7 @@ type AdminResponse
     | ArpNoUserId
     | ArpNoData
     | ArpUserUpdated LoginData
-    | ArpServerError
+    | ArpServerError String
     | ArpUserInvite UserInvite
     | ArpPwdReset PwdReset
     | ArpNotLoggedIn
@@ -487,8 +486,8 @@ adminResponseEncoder enum =
         ArpUserUpdated inner ->
             Json.Encode.object [ ( "ArpUserUpdated", loginDataEncoder inner ) ]
 
-        ArpServerError ->
-            Json.Encode.string "ArpServerError"
+        ArpServerError inner ->
+            Json.Encode.object [ ( "ArpServerError", Json.Encode.string inner ) ]
 
         ArpUserInvite inner ->
             Json.Encode.object [ ( "ArpUserInvite", userInviteEncoder inner ) ]
@@ -880,16 +879,7 @@ adminResponseDecoder =
                             Json.Decode.fail <| "Unexpected variant " ++ unexpected
                 )
         , Json.Decode.map ArpUserUpdated (Json.Decode.field "ArpUserUpdated" loginDataDecoder)
-        , Json.Decode.string
-            |> Json.Decode.andThen
-                (\x ->
-                    case x of
-                        "ArpServerError" ->
-                            Json.Decode.succeed ArpServerError
-
-                        unexpected ->
-                            Json.Decode.fail <| "Unexpected variant " ++ unexpected
-                )
+        , Json.Decode.map ArpServerError (Json.Decode.field "ArpServerError" Json.Decode.string)
         , Json.Decode.map ArpUserInvite (Json.Decode.field "ArpUserInvite" userInviteDecoder)
         , Json.Decode.map ArpPwdReset (Json.Decode.field "ArpPwdReset" pwdResetDecoder)
         , Json.Decode.string

@@ -17,7 +17,7 @@ import Util
 
 type alias Model =
     { name : String
-    , uuid : Maybe UUID
+    , uuid : Maybe String
     , email : String
     , admin : Bool
     , active : Bool
