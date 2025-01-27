@@ -23,7 +23,7 @@
               rustfmt
               rust-analyzer
               sqlite
-              pkgconfig
+              pkg-config
               openssl.dev
               elm2nix
               elmPackages.elm
@@ -35,7 +35,7 @@
               elmPackages.elm-upgrade
               elmPackages.elm-xref
               elmPackages.elm-language-server
-              elmPackages.elm-verify-examples
+              # elmPackages.elm-verify-examples
               elmPackages.elmi-to-json
               elmPackages.elm-optimize-level-2
             ];
