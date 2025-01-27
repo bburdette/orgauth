@@ -10,7 +10,11 @@ type UserId
 
 userIdEncoder : UserId -> Json.Encode.Value
 userIdEncoder (UserId id) =
-    Json.Encode.int id
+    Json.Encode.object
+        [ ( "Uid"
+          , Json.Encode.int id
+          )
+        ]
 
 
 makeUserId : Int -> UserId
@@ -25,4 +29,5 @@ getUserIdVal (UserId uid) =
 
 userIdDecoder : Json.Decode.Decoder UserId
 userIdDecoder =
-    Json.Decode.int |> Json.Decode.map makeUserId
+    Json.Decode.succeed UserId
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "Uid" Json.Decode.int))
