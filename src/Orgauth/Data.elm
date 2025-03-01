@@ -3,9 +3,11 @@
 
 module Orgauth.Data exposing (..)
 
+import Dict exposing (Dict)
+import Http
 import Json.Decode
 import Json.Encode
-import Orgauth.UserId exposing (..)
+import Url.Builder
 
 
 resultEncoder : (e -> Json.Encode.Value) -> (t -> Json.Encode.Value) -> (Result e t -> Json.Encode.Value)
@@ -24,6 +26,17 @@ resultDecoder errDecoder okDecoder =
         [ Json.Decode.map Ok (Json.Decode.field "Ok" okDecoder)
         , Json.Decode.map Err (Json.Decode.field "Err" errDecoder)
         ]
+
+
+type UserId
+    = Uid Int
+
+
+userIdEncoder : UserId -> Json.Encode.Value
+userIdEncoder enum =
+    case enum of
+        Uid inner ->
+            Json.Encode.object [ ( "Uid", Json.Encode.int inner ) ]
 
 
 type alias LoginData =
@@ -503,6 +516,13 @@ adminResponseEncoder enum =
 
         ArpAccessDenied ->
             Json.Encode.string "ArpAccessDenied"
+
+
+userIdDecoder : Json.Decode.Decoder UserId
+userIdDecoder =
+    Json.Decode.oneOf
+        [ Json.Decode.map Uid (Json.Decode.field "Uid" Json.Decode.int)
+        ]
 
 
 loginDataDecoder : Json.Decode.Decoder LoginData

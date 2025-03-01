@@ -11,7 +11,8 @@ fn main() {
     "Orgauth.Data",
     &mut target,
     {        // generates types and encoders for types implementing ElmEncoder
-    encoders: [ od::LoginData ,
+    encoders: [ od::UserId,
+      od::LoginData ,
       od::AdminSettings ,
       od::User ,
       od::PhantomUser ,
@@ -30,7 +31,8 @@ fn main() {
       od::UserResponse ,
       od::AdminRequest ,
       od::AdminResponse ,]
-    decoders: [ od::LoginData ,
+    decoders: [ od::UserId,
+      od::LoginData ,
       od::AdminSettings ,
       od::User ,
       od::PhantomUser ,

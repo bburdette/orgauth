@@ -7,8 +7,7 @@ import Element.Events as EE
 import Element.Font as EF
 import Element.Input as EI
 import Element.Region
-import Orgauth.Data as Data
-import Orgauth.UserId exposing (UserId)
+import Orgauth.Data as Data exposing (UserId)
 import TangoColors as TC
 import Time exposing (Zone)
 import UUID exposing (UUID)
