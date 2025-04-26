@@ -220,7 +220,7 @@ pub enum UserResponse {
   UrpLoggedOut,
   UrpChangedPassword,
   UrpChangedEmail,
-  UrpChangedRemoteUrl,
+  UrpChangedRemoteUrl(String),
   UrpResetPasswordAck,
   UrpSetPasswordAck,
   UrpInvite(UserInvite),

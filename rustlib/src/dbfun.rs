@@ -671,7 +671,7 @@ pub fn update_user(conn: &Connection, user: &User) -> Result<(), error::Error> {
        admin = ?6,
        active = ?7,
        remote_url = ?8,
-       cookie = ?9,
+       cookie = ?9
      where id = ?10",
     params![
       user.name.to_lowercase(),
@@ -905,23 +905,23 @@ pub async fn change_remote_url(
 
       let wm = serde_json::from_value::<UserResponse>(res.json().await?)?;
       if let UserResponse::UrpLoggedIn(ld) = wm {
-        userdata.remote_url = Some(cru.remote_url.clone());
-
-        userdata.cookie = cookie;
-
         if userdata.uuid != ld.uuid {
           return Ok(UserResponse::UrpInvalidUserUuid);
         }
 
+        userdata.remote_url = Some(cru.remote_url.clone());
+        userdata.cookie = cookie;
+
         update_user(conn, &userdata)?;
         info!("changed remote_url for {}", userdata.name.to_lowercase());
-        Ok(UserResponse::UrpChangedRemoteUrl)
+        Ok(UserResponse::UrpChangedRemoteUrl(cru.remote_url.clone()))
       } else {
         Ok(UserResponse::UrpRemoteRegistrationFailed)
       }
     }
   }
 }
+
 // change password without requiring old password.
 // for unregistered users.
 pub fn override_password(

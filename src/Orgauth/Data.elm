@@ -370,7 +370,7 @@ type UserResponse
     | UrpLoggedOut
     | UrpChangedPassword
     | UrpChangedEmail
-    | UrpChangedRemoteUrl
+    | UrpChangedRemoteUrl (String)
     | UrpResetPasswordAck
     | UrpSetPasswordAck
     | UrpInvite (UserInvite)
@@ -411,8 +411,8 @@ userResponseEncoder enum =
             Json.Encode.string "UrpChangedPassword"
         UrpChangedEmail ->
             Json.Encode.string "UrpChangedEmail"
-        UrpChangedRemoteUrl ->
-            Json.Encode.string "UrpChangedRemoteUrl"
+        UrpChangedRemoteUrl inner ->
+            Json.Encode.object [ ( "UrpChangedRemoteUrl", Json.Encode.string inner ) ]
         UrpResetPasswordAck ->
             Json.Encode.string "UrpResetPasswordAck"
         UrpSetPasswordAck ->
@@ -783,15 +783,7 @@ userResponseDecoder =
                         unexpected ->
                             Json.Decode.fail <| "Unexpected variant " ++ unexpected
                 )
-        , Json.Decode.string
-            |> Json.Decode.andThen
-                (\x ->
-                    case x of
-                        "UrpChangedRemoteUrl" ->
-                            Json.Decode.succeed UrpChangedRemoteUrl
-                        unexpected ->
-                            Json.Decode.fail <| "Unexpected variant " ++ unexpected
-                )
+        , Json.Decode.map UrpChangedRemoteUrl (Json.Decode.field "UrpChangedRemoteUrl" (Json.Decode.string))
         , Json.Decode.string
             |> Json.Decode.andThen
                 (\x ->
