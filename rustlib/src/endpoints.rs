@@ -477,7 +477,7 @@ pub async fn user_interface(
             Err(_e) => Ok(UserResponse::UrpInvalidUserOrPwd),
             Ok(userdata) => {
               // finally!  processing messages as logged in user.
-              user_interface_loggedin(&config, &conn, callbacks, userdata.id, &ar)
+              user_interface_loggedin(&config, &conn, callbacks, userdata.id, &ar).await
             }
           }
         }
@@ -486,7 +486,7 @@ pub async fn user_interface(
   }
 }
 
-pub fn user_interface_loggedin(
+pub async fn user_interface_loggedin(
   config: &Config,
   conn: &Connection,
   callbacks: &mut Callbacks,
@@ -513,6 +513,11 @@ pub fn user_interface_loggedin(
       }
 
       Ok(UserResponse::UrpChangedEmail)
+    }
+    AuthedRequest::AthChangeRemoteUrl(cp) => {
+      let uresp = dbfun::change_remote_url(&conn, uid, "user".to_string(), &cp).await?;
+
+      Ok(uresp)
     }
     AuthedRequest::AthReadRemoteUser(id) => {
       match (

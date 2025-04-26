@@ -2,16 +2,9 @@ module Orgauth.UserEdit exposing (Command(..), Model, Msg(..), init, initNew, is
 
 import Element as E exposing (Element)
 import Element.Background as EBk
-import Element.Border as EBd
-import Element.Events as EE
-import Element.Font as EF
 import Element.Input as EI
-import Element.Region
 import Orgauth.Data as Data exposing (UserId)
 import TangoColors as TC
-import Time exposing (Zone)
-import UUID exposing (UUID)
-import Util
 
 
 type alias Model =
@@ -20,6 +13,7 @@ type alias Model =
     , email : String
     , admin : Bool
     , active : Bool
+    , remoteUrl : Maybe String
     , initialUser : Maybe Data.LoginData
     }
 
@@ -52,6 +46,7 @@ init ld =
     , email = ld.email
     , admin = ld.admin
     , active = ld.active
+    , remoteUrl = ld.remoteUrl
     , initialUser = Just ld
     }
 
@@ -63,6 +58,7 @@ initNew =
     , email = ""
     , admin = False
     , active = False
+    , remoteUrl = Nothing
     , initialUser = Nothing
     }
 
@@ -188,6 +184,7 @@ update msg model =
                             , email = model.email
                             , admin = model.admin
                             , active = model.active
+                            , remoteUrl = model.remoteUrl
                             , data = ld.data
                             }
                         )

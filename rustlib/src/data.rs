@@ -64,6 +64,7 @@ pub struct LoginData {
   pub email: String,
   pub admin: bool,
   pub active: bool,
+  pub remote_url: Option<String>,
   pub data: Option<String>,
 }
 
@@ -176,6 +177,12 @@ pub struct ChangeEmail {
   pub email: String,
 }
 
+#[derive(Elm, ElmDecode, ElmEncode, Serialize, Deserialize, Debug, Clone)]
+pub struct ChangeRemoteUrl {
+  pub pwd: String,
+  pub remote_url: String,
+}
+
 #[derive(Elm, ElmDecode, ElmEncode, Serialize, Deserialize, Debug)]
 pub enum UserRequest {
   UrqRegister(RegistrationData),
@@ -193,6 +200,7 @@ pub enum AuthedRequest {
   AthGetInvite(GetInvite),
   AthChangePassword(ChangePassword),
   AthChangeEmail(ChangeEmail),
+  AthChangeRemoteUrl(ChangeRemoteUrl),
   AthReadRemoteUser(UserId),
 }
 
@@ -203,6 +211,7 @@ pub enum UserResponse {
   UrpUnregisteredUser,
   UrpInvalidUserOrPwd,
   UrpInvalidUserId,
+  UrpInvalidUserUuid,
   UrpBlankUserName,
   UrpBlankPassword,
   UrpNotLoggedIn,
@@ -211,6 +220,7 @@ pub enum UserResponse {
   UrpLoggedOut,
   UrpChangedPassword,
   UrpChangedEmail,
+  UrpChangedRemoteUrl,
   UrpResetPasswordAck,
   UrpSetPasswordAck,
   UrpInvite(UserInvite),

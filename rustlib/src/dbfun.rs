@@ -1,4 +1,7 @@
-use crate::data::{ChangeEmail, ChangePassword, LoginData, User, UserId, UserInvite};
+use crate::data::{
+  ChangeEmail, ChangePassword, ChangeRemoteUrl, Login, LoginData, User, UserId, UserInvite,
+  UserRequest, UserResponse,
+};
 use crate::data::{Config, RegistrationData};
 use crate::error;
 use crate::util::{is_token_expired, now, salt_string};
@@ -140,6 +143,7 @@ pub fn login_data(conn: &Connection, uid: UserId) -> Result<LoginData, error::Er
     email: user.email,
     admin: user.admin,
     active: user.active,
+    remote_url: user.remote_url,
     data: None,
   })
 }
@@ -159,6 +163,7 @@ pub fn login_data_cb(
     email: user.email,
     admin: user.admin,
     active: user.active,
+    remote_url: user.remote_url,
     data: extra_login_data(&conn, uid)?.map(|x| x.to_string()),
   })
 }
@@ -169,6 +174,7 @@ pub fn update_login_data(conn: &Connection, ld: &LoginData) -> Result<(), error:
   user.email = ld.email.clone();
   user.admin = ld.admin;
   user.active = ld.active;
+  user.remote_url = ld.remote_url.clone();
   update_user(&conn, &user)
 }
 
@@ -664,8 +670,9 @@ pub fn update_user(conn: &Connection, user: &User) -> Result<(), error::Error> {
        registration_key = ?5,
        admin = ?6,
        active = ?7,
-       cookie = ?8
-     where id = ?9",
+       remote_url = ?8,
+       cookie = ?9,
+     where id = ?10",
     params![
       user.name.to_lowercase(),
       user.hashwd,
@@ -674,6 +681,7 @@ pub fn update_user(conn: &Connection, user: &User) -> Result<(), error::Error> {
       user.registration_key,
       user.admin,
       user.active,
+      user.remote_url,
       user.cookie,
       user.id.to_i64(),
     ],
@@ -855,6 +863,65 @@ pub fn change_password(
   }
 }
 
+// change password, checking old password first.
+pub async fn change_remote_url(
+  conn: &Connection,
+  uid: UserId,
+  user_uri_path: String,
+  cru: &ChangeRemoteUrl,
+) -> Result<UserResponse, error::Error> {
+  let mut userdata = read_user_by_id(&conn, uid)?;
+  {
+    // check the pwd.
+    if sha256::digest(
+      (cru.pwd.clone() + userdata.salt.as_str())
+        .into_bytes()
+        .as_slice(),
+    ) != userdata.hashwd
+    {
+      // old password is bad, can't change.
+      bail!("invalid password!")
+    } else {
+      // try to log in to an existing account on the remote!
+      let client = reqwest::Client::new();
+      let l = UserRequest::UrqLogin(Login {
+        uid: userdata.name.clone(),
+        pwd: cru.pwd.clone(),
+      });
+
+      // TODO: this uri is dependent on the remote app!
+      // which should be the same as this app, but still.
+      let user_uri = format!("{}/{}", cru.remote_url, user_uri_path);
+
+      let res = client.post(user_uri).json(&l).send().await?;
+      let cookie = match res.headers().get(reqwest::header::SET_COOKIE) {
+        Some(ck) => Some(
+          ck.to_str()
+            .map_err(|_| error::Error::String("invalid cookie".to_string()))?
+            .to_string(),
+        ),
+        None => None,
+      };
+
+      let wm = serde_json::from_value::<UserResponse>(res.json().await?)?;
+      if let UserResponse::UrpLoggedIn(ld) = wm {
+        userdata.remote_url = Some(cru.remote_url.clone());
+
+        userdata.cookie = cookie;
+
+        if userdata.uuid != ld.uuid {
+          return Ok(UserResponse::UrpInvalidUserUuid);
+        }
+
+        update_user(conn, &userdata)?;
+        info!("changed remote_url for {}", userdata.name.to_lowercase());
+        Ok(UserResponse::UrpChangedRemoteUrl)
+      } else {
+        Ok(UserResponse::UrpRemoteRegistrationFailed)
+      }
+    }
+  }
+}
 // change password without requiring old password.
 // for unregistered users.
 pub fn override_password(
