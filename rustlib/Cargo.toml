@@ -6,32 +6,32 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-base64 = "0.13.0"
-env_logger = "0.11.5"
-rusqlite = { version = "0.29.0", features = ["bundled"] }
-log = "0.4.0"
-actix-web = "4.3.1"
+base64 = "0.13.1"
+env_logger = "0.11.8"
+rusqlite = { version = "0.37.0", features = ["bundled"] }
+log = "0.4.28"
+actix-web = "4.11.0"
 actix-session = { version = "0.7.2", features = ["cookie-session"] }
-futures = "0.1.25"
-serde = "1.0.124"
-serde_derive = "1.0.124"
-serde_json = "1.0.64"
-uuid = { version = "1.7", features = ["serde", "v4", "fast-rng"] }
-sha256 = "1.1.4"
-time = { version = "0.3.37", features = ["formatting"] }
-rand = "0.5.0"
-toml = "0.5.9"
-simple-error = "0.2.1"
+futures = "0.1.31"
+serde = "1.0.219"
+serde_derive = "1.0.219"
+serde_json = "1.0.143"
+uuid = { version = "1.18", features = ["serde", "v4", "fast-rng"] }
+sha256 = "1.6.0"
+time = { version = "0.3.43", features = ["formatting"] }
+rand = "0.5.6"
+toml = "0.5.11"
+simple-error = "0.2.3"
 json = "*"
 lettre = {version = "0.10.4", default-features = false, features = ["builder", "smtp-transport"]}
 barrel = { version = "0.7.0", features = ["sqlite3"] }
-clap = "2.33.2"
+clap = "2.34.0"
 timer = "0.2.0"
-either = "1.6.1"
+either = "1.15.0"
 
-reqwest = { version = "0.11.22", default-features = false, features = ["json", "blocking"] }
+reqwest = { version = "0.11.27", default-features = false, features = ["json", "blocking"] }
 tokio = { version = "1", features = ["full"] }
-elm_rs =  { version = "0.2.2", features = ["uuid"] }
+elm_rs =  { version = "0.2.3", features = ["uuid"] }
 
 # try this vendoring if there's a tauri-android problem.
 # openssl = { version = "0.10", features = ["vendored"] }
