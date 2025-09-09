@@ -486,7 +486,7 @@ fn read_user_with_token_pageload_internal(
       // add new login token, and flag old for removal.
       mark_prevtoken(&tx, token)?;
       let new_token = Uuid::new_v4();
-      add_token(&tx, user.id, new_token, Some(token))?;
+      add_token(&tx, user.id, new_token, Some(token), None)?;
       session.insert("token", new_token)?;
     }
   }
@@ -501,16 +501,18 @@ pub fn add_token(
   user: UserId,
   token: Uuid,
   prevtoken: Option<Uuid>,
+  tokentype: Option<&str>,
 ) -> Result<(), error::Error> {
   let now = now()?;
   conn.execute(
-    "insert into orgauth_token (user, token, tokendate, prevtoken)
-     values (?1, ?2, ?3, ?4)",
+    "insert into orgauth_token (user, token, tokendate, prevtoken, type)
+     values (?1, ?2, ?3, ?4, ?5)",
     params![
       user.to_i64(),
       token.to_string(),
       now,
-      prevtoken.map(|s| s.to_string())
+      prevtoken.map(|s| s.to_string()),
+      tokentype
     ],
   )?;
 
@@ -560,6 +562,47 @@ pub fn purge_login_tokens(conn: &Connection, token_expiration_ms: i64) -> Result
     match item {
       Ok(PurgeToken(user, token, _tokendate, _prevtoken)) => {
         info!("purging login token for user {}", user);
+        conn.execute(
+          "delete from orgauth_token where
+          user = ?1 and token = ?2",
+          params![user, token],
+        )?;
+      }
+      Err(e) => error!("error purging token: {:?}", e),
+    }
+  }
+
+  Ok(())
+}
+
+pub fn purge_login_tokens_type(
+  conn: &Connection,
+  token_expiration_ms: i64,
+  token_type: &str,
+) -> Result<(), error::Error> {
+  let now = now()?;
+  let expdt = now - token_expiration_ms;
+
+  struct PurgeToken(i64, String, i64, Option<String>);
+
+  let mut stmt = conn.prepare(
+    "select user, token, tokendate, prevtoken from
+      orgauth_token where tokendate < ?1 and type = ?2",
+  )?;
+
+  let c_iter = stmt.query_map(params![expdt, token_type], |row| {
+    Ok(PurgeToken(
+      row.get(0)?,
+      row.get(1)?,
+      row.get(2)?,
+      row.get(3)?,
+    ))
+  })?;
+
+  for item in c_iter {
+    match item {
+      Ok(PurgeToken(user, token, _tokendate, _prevtoken)) => {
+        info!("purging login token for user {}, type {}", user, token_type);
         conn.execute(
           "delete from orgauth_token where
           user = ?1 and token = ?2",

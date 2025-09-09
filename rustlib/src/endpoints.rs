@@ -86,7 +86,7 @@ pub fn log_user_in(
   // new token here, and token date.
   let token = Uuid::new_v4();
   // new token has no "prev"
-  dbfun::add_token(&conn, uid, token, None)?;
+  dbfun::add_token(&conn, uid, token, None, None)?;
   tokener.set(token)?;
 
   Ok(UserResponse::UrpLoggedIn(ld))

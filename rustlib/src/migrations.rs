@@ -230,7 +230,6 @@ pub fn udpate6(dbfile: &Path) -> Result<(), error::Error> {
 
   let mut m = Migration::new();
 
-  // add token table.  multiple tokens per user to support multiple browsers and/or devices.
   m.change_table("orgauth_token", |t| {
     t.add_column("regendate", types::integer().nullable(true));
   });
@@ -247,7 +246,6 @@ pub fn udpate7(dbfile: &Path) -> Result<(), error::Error> {
 
   let mut m = Migration::new();
 
-  // add token table.  multiple tokens per user to support multiple browsers and/or devices.
   m.change_table("orgauth_token", |t| {
     t.add_column("prevtoken", types::text().nullable(true));
   });
@@ -344,6 +342,22 @@ pub fn udpate8(dbfile: &Path) -> Result<(), error::Error> {
   )?;
 
   conn.execute("drop table orgauth_user_temp", params![])?;
+
+  Ok(())
+}
+
+pub fn udpate9(dbfile: &Path) -> Result<(), error::Error> {
+  // db connection without foreign key checking.
+  let conn = Connection::open(dbfile)?;
+  conn.execute("PRAGMA foreign_keys = false;", params![])?;
+
+  let mut m = Migration::new();
+
+  m.change_table("orgauth_token", |t| {
+    t.add_column("type", types::text().nullable(true));
+  });
+
+  conn.execute_batch(m.make::<Sqlite>().as_str())?;
 
   Ok(())
 }
