@@ -434,12 +434,10 @@ pub fn read_user_with_token_pageload(
           rusqlite::ErrorCode::DatabaseBusy => {
             warn!("database busy sleeping 10");
             std::thread::sleep(Duration::from_millis(10));
-            ()
           }
           rusqlite::ErrorCode::DatabaseLocked => {
             warn!("database locked sleeping 10");
             std::thread::sleep(Duration::from_millis(10));
-            ()
           }
           _ => return Err(rusqlite::Error::SqliteFailure(fe, mbstring).into()),
         }
