@@ -3,14 +3,15 @@ module Orgauth.AdminInterface exposing (SendMsg(..), ServerResponse(..), encodeS
 import Json.Decode as JD
 import Json.Encode as JE
 import Orgauth.Data as Data
+import Orgauth.UserId exposing (UserId(..))
 
 
 type SendMsg
     = GetUsers
-    | DeleteUser Data.UserId
+    | DeleteUser UserId
     | UpdateUser Data.LoginData
     | GetInvite Data.GetInvite
-    | GetPwdReset Data.UserId
+    | GetPwdReset UserId
 
 
 type ServerResponse

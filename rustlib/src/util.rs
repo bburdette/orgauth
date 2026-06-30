@@ -8,6 +8,7 @@ use std::io::Write;
 use std::path::Path;
 use std::string::*;
 use std::time::SystemTime;
+use time;
 
 pub fn load_string(file_name: &str) -> Result<String, error::Error> {
   let path = &Path::new(&file_name);
@@ -54,6 +55,16 @@ pub fn nowms() -> Result<u128, error::Error> {
     .duration_since(SystemTime::UNIX_EPOCH)
     .map(|n| n.as_millis())?;
   Ok(nowmilis)
+}
+
+pub fn show_time(seconds: i64) -> Option<String> {
+  let dt: time::OffsetDateTime = time::OffsetDateTime::from_unix_timestamp(seconds).ok()?;
+  let f = time::format_description::parse("[year]-[month]-[day]T[hour]:[minute]:[second]");
+
+  match f.map(|dtf| dt.format(&dtf)) {
+    Ok(Ok(dtf)) => return Some(format!("{}", dtf)),
+    _ => return None,
+  };
 }
 
 pub fn is_token_expired(token_expiration_ms: i64, tokendate: i64) -> bool {

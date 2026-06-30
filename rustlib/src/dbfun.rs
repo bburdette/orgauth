@@ -1,4 +1,7 @@
-use crate::data::{ChangeEmail, ChangePassword, LoginData, User, UserInvite};
+use crate::data::{
+  ChangeEmail, ChangePassword, ChangeRemoteUrl, Login, LoginData, User, UserId, UserInvite,
+  UserRequest, UserResponse,
+};
 use crate::data::{Config, RegistrationData};
 use crate::error;
 use crate::util::{is_token_expired, now, salt_string};
@@ -36,21 +39,21 @@ pub fn new_user(
   data: Option<String>,
   admin: bool,
   uuid: Option<Uuid>,
-  creator: Option<i64>,
+  creator: Option<UserId>,
   remote_url: Option<String>,
-  remote_data: Option<serde_json::Value>,
+  remote_data: Option<String>,
   cookie: Option<String>,
   on_new_user: &mut Box<
     dyn FnMut(
       &Connection,
       &RegistrationData,
       Option<String>,
-      Option<serde_json::Value>, // <- remote_data
-      Option<i64>,
-      i64,
+      Option<String>, // <- remote_data
+      Option<UserId>,
+      UserId,
     ) -> Result<(), error::Error>,
   >,
-) -> Result<i64, error::Error> {
+) -> Result<UserId, error::Error> {
   let now = now()?;
   let salt = salt_string();
   let hashwd = sha256::digest((rd.pwd.clone() + salt.as_str()).into_bytes().as_slice());
@@ -73,7 +76,7 @@ pub fn new_user(
     params![rd.uid.to_lowercase(), uuid.to_string(), hashwd, salt, rd.email, admin, registration_key, remote_url, cookie, now],
   )?;
 
-  let uid = conn.last_insert_rowid();
+  let uid = UserId::Uid(conn.last_insert_rowid());
 
   (on_new_user)(&conn, &rd, data, remote_data, creator, uid)?;
 
@@ -84,19 +87,19 @@ pub fn phantom_user(
   conn: &Connection,
   name: &String,
   uuid: Uuid,
-  extra_login_data: Option<serde_json::Value>,
+  extra_login_data: Option<String>,
   active: bool,
   on_new_user: &mut Box<
     dyn FnMut(
       &Connection,
       &RegistrationData,
       Option<String>,
-      Option<serde_json::Value>,
-      Option<i64>,
-      i64,
+      Option<String>,
+      Option<UserId>,
+      UserId,
     ) -> Result<(), error::Error>,
   >,
-) -> Result<i64, error::Error> {
+) -> Result<UserId, error::Error> {
   let now = now()?;
   let rd = RegistrationData {
     uid: name.to_lowercase(),
@@ -112,7 +115,7 @@ pub fn phantom_user(
     params![name.to_lowercase(), uuid.to_string(), "phantom", "phantom", "phantom", active,"phantom", now],
   )?;
 
-  let uid = conn.last_insert_rowid();
+  let uid = UserId::Uid(conn.last_insert_rowid());
 
   // TODO: need to use remote note uuid??
   (on_new_user)(&conn, &rd, None, extra_login_data, None, uid)?;
@@ -121,17 +124,17 @@ pub fn phantom_user(
 }
 
 // pub fn user_id(conn: &Connection, name: &str) -> Result<i64, error::Error> {
-pub fn user_id(conn: &Connection, name: &str) -> Result<i64, error::Error> {
+pub fn user_id(conn: &Connection, name: &str) -> Result<UserId, error::Error> {
   let id: i64 = conn.query_row(
     "select id from orgauth_user
       where orgauth_user.name = ?1",
     params![name.to_lowercase()],
     |row| Ok(row.get(0)?),
   )?;
-  Ok(id)
+  Ok(UserId::Uid(id))
 }
 
-pub fn login_data(conn: &Connection, uid: i64) -> Result<LoginData, error::Error> {
+pub fn login_data(conn: &Connection, uid: UserId) -> Result<LoginData, error::Error> {
   let user = read_user_by_id(&conn, uid)?;
   Ok(LoginData {
     userid: uid,
@@ -140,15 +143,16 @@ pub fn login_data(conn: &Connection, uid: i64) -> Result<LoginData, error::Error
     email: user.email,
     admin: user.admin,
     active: user.active,
+    remote_url: user.remote_url,
     data: None,
   })
 }
 
 pub fn login_data_cb(
   conn: &Connection,
-  uid: i64,
+  uid: UserId,
   extra_login_data: &mut Box<
-    dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, error::Error>,
+    dyn FnMut(&Connection, UserId) -> Result<Option<serde_json::Value>, error::Error>,
   >,
 ) -> Result<LoginData, error::Error> {
   let user = read_user_by_id(&conn, uid)?;
@@ -159,7 +163,8 @@ pub fn login_data_cb(
     email: user.email,
     admin: user.admin,
     active: user.active,
-    data: extra_login_data(&conn, uid)?,
+    remote_url: user.remote_url,
+    data: extra_login_data(&conn, uid)?.map(|x| x.to_string()),
   })
 }
 
@@ -169,13 +174,14 @@ pub fn update_login_data(conn: &Connection, ld: &LoginData) -> Result<(), error:
   user.email = ld.email.clone();
   user.admin = ld.admin;
   user.active = ld.active;
+  user.remote_url = ld.remote_url.clone();
   update_user(&conn, &user)
 }
 
 pub fn read_users(
   conn: &Connection,
   extra_login_data: &mut Box<
-    dyn FnMut(&Connection, i64) -> Result<Option<serde_json::Value>, error::Error>,
+    dyn FnMut(&Connection, UserId) -> Result<Option<serde_json::Value>, error::Error>,
   >,
 ) -> Result<Vec<LoginData>, error::Error> {
   let mut pstmt = conn.prepare(
@@ -186,7 +192,7 @@ pub fn read_users(
   let r = Ok(
     pstmt
       .query_map(params![], |row| {
-        let id = row.get(0)?;
+        let id = UserId::Uid(row.get(0)?);
         Ok(id)
       })?
       .filter_map(|rid| match rid {
@@ -205,7 +211,7 @@ pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, error::E
     params![name.to_lowercase()],
     |row| {
       Ok::<_, error::Error>(User {
-        id: row.get(0)?,
+        id: UserId::Uid(row.get(0)?),
         uuid: Uuid::parse_str(row.get::<usize, String>(1)?.as_str())?,
         name: name.to_lowercase(),
         hashwd: row.get(2)?,
@@ -223,14 +229,14 @@ pub fn read_user_by_name(conn: &Connection, name: &str) -> Result<User, error::E
   Ok(user)
 }
 
-pub fn read_user_by_id(conn: &Connection, id: i64) -> Result<User, error::Error> {
+pub fn read_user_by_id(conn: &Connection, id: UserId) -> Result<User, error::Error> {
   let user = conn.query_row_and_then(
     "select id, uuid, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie
       from orgauth_user where id = ?1",
-    params![id],
+    params![Into::<i64>::into(id)],
     |row| {
       Ok::<_, error::Error>(User {
-        id: row.get(0)?,
+        id: UserId::Uid(row.get(0)?),
         uuid: Uuid::parse_str(row.get::<usize, String>(1)?.as_str())?,
         name: row.get(2)?,
         hashwd: row.get(3)?,
@@ -255,7 +261,7 @@ pub fn read_user_by_uuid(conn: &Connection, uuid: &Uuid) -> Result<User, error::
     params![uuid.to_string().as_str()],
     |row| {
       Ok::<_, error::Error>(User {
-        id: row.get(0)?,
+        id: UserId::Uid(row.get(0)?),
         uuid: Uuid::parse_str(row.get::<usize, String>(1)?.as_str())?,
         name: row.get(2)?,
         hashwd: row.get(3)?,
@@ -288,7 +294,7 @@ fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo
     |row| {
       Ok::<_, error::Error>((
         User {
-          id: row.get(0)?,
+        id: UserId::Uid(row.get(0)?),
           uuid: Uuid::parse_str(row.get::<usize, String>(1)?.as_str())?,
           name: row.get(2)?,
           hashwd: row.get(3)?,
@@ -428,12 +434,10 @@ pub fn read_user_with_token_pageload(
           rusqlite::ErrorCode::DatabaseBusy => {
             warn!("database busy sleeping 10");
             std::thread::sleep(Duration::from_millis(10));
-            ()
           }
           rusqlite::ErrorCode::DatabaseLocked => {
             warn!("database locked sleeping 10");
             std::thread::sleep(Duration::from_millis(10));
-            ()
           }
           _ => return Err(rusqlite::Error::SqliteFailure(fe, mbstring).into()),
         }
@@ -492,7 +496,7 @@ fn read_user_with_token_pageload_internal(
 
 pub fn add_token(
   conn: &Connection,
-  user: i64,
+  user: UserId,
   token: Uuid,
   prevtoken: Option<Uuid>,
 ) -> Result<(), error::Error> {
@@ -501,7 +505,7 @@ pub fn add_token(
     "insert into orgauth_token (user, token, tokendate, prevtoken)
      values (?1, ?2, ?3, ?4)",
     params![
-      user,
+      user.to_i64(),
       token.to_string(),
       now,
       prevtoken.map(|s| s.to_string())
@@ -664,8 +668,9 @@ pub fn update_user(conn: &Connection, user: &User) -> Result<(), error::Error> {
        registration_key = ?5,
        admin = ?6,
        active = ?7,
-       cookie = ?8
-     where id = ?9",
+       remote_url = ?8,
+       cookie = ?9
+     where id = ?10",
     params![
       user.name.to_lowercase(),
       user.hashwd,
@@ -674,8 +679,9 @@ pub fn update_user(conn: &Connection, user: &User) -> Result<(), error::Error> {
       user.registration_key,
       user.admin,
       user.active,
+      user.remote_url,
       user.cookie,
-      user.id,
+      user.id.to_i64(),
     ],
   )?;
 
@@ -685,7 +691,7 @@ pub fn update_user(conn: &Connection, user: &User) -> Result<(), error::Error> {
 // email change request.
 pub fn add_newemail(
   conn: &Connection,
-  user: i64,
+  user: UserId,
   token: Uuid,
   email: String,
 ) -> Result<(), error::Error> {
@@ -693,7 +699,7 @@ pub fn add_newemail(
   conn.execute(
     "insert into orgauth_newemail (user, email, token, tokendate)
      values (?1, ?2, ?3, ?4)",
-    params![user, email, token.to_string(), now],
+    params![user.to_i64(), email, token.to_string(), now],
   )?;
 
   Ok(())
@@ -702,60 +708,64 @@ pub fn add_newemail(
 // email change request.
 pub fn read_newemail(
   conn: &Connection,
-  user: i64,
+  user: UserId,
   token: Uuid,
 ) -> Result<(String, i64), error::Error> {
   let result = conn.query_row(
     "select email, tokendate from orgauth_newemail
      where user = ?1
       and token = ?2",
-    params![user, token.to_string()],
+    params![user.to_i64(), token.to_string()],
     |row| Ok((row.get(0)?, row.get(1)?)),
   )?;
   Ok(result)
 }
 
 // email change request.
-pub fn remove_newemail(conn: &Connection, user: i64, token: Uuid) -> Result<(), error::Error> {
+pub fn remove_newemail(conn: &Connection, user: UserId, token: Uuid) -> Result<(), error::Error> {
   conn.execute(
     "delete from orgauth_newemail
      where user = ?1 and token = ?2",
-    params![user, token.to_string()],
+    params![user.to_i64(), token.to_string()],
   )?;
 
   Ok(())
 }
 
 // password reset request.
-pub fn add_newpassword(conn: &Connection, user: i64, token: Uuid) -> Result<(), error::Error> {
+pub fn add_newpassword(conn: &Connection, user: UserId, token: Uuid) -> Result<(), error::Error> {
   let now = now()?;
   conn.execute(
     "insert into orgauth_newpassword (user, token, tokendate)
      values (?1, ?2, ?3)",
-    params![user, token.to_string(), now],
+    params![user.to_i64(), token.to_string(), now],
   )?;
 
   Ok(())
 }
 
 // password reset request.
-pub fn read_newpassword(conn: &Connection, user: i64, token: Uuid) -> Result<i64, error::Error> {
+pub fn read_newpassword(conn: &Connection, user: UserId, token: Uuid) -> Result<i64, error::Error> {
   let result = conn.query_row(
     "select tokendate from orgauth_newpassword
      where user = ?1
       and token = ?2",
-    params![user, token.to_string()],
+    params![user.to_i64(), token.to_string()],
     |row| Ok(row.get(0)?),
   )?;
   Ok(result)
 }
 
 // password reset request.
-pub fn remove_newpassword(conn: &Connection, user: i64, token: Uuid) -> Result<(), error::Error> {
+pub fn remove_newpassword(
+  conn: &Connection,
+  user: UserId,
+  token: Uuid,
+) -> Result<(), error::Error> {
   conn.execute(
     "delete from orgauth_newpassword
      where user = ?1 and token = ?2",
-    params![user, token.to_string()],
+    params![user.to_i64(), token.to_string()],
   )?;
 
   Ok(())
@@ -766,14 +776,14 @@ pub fn add_userinvite(
   conn: &Connection,
   token: Uuid,
   email: Option<String>,
-  creator: i64,
+  creator: UserId,
   data: Option<String>,
 ) -> Result<(), error::Error> {
   let now = now()?;
   conn.execute(
     "insert into orgauth_user_invite (email, token, tokendate, creator, data)
      values (?1, ?2, ?3, ?4, ?5)",
-    params![email, token.to_string(), now, creator, data],
+    params![email, token.to_string(), now, creator.to_i64(), data],
   )?;
 
   Ok(())
@@ -807,7 +817,7 @@ pub fn read_userinvite(
         // tokendate: row.get(1)?,
         url: format!("{}/invite/{}", mainsite, token),
         data: row.get(2)?,
-        creator: row.get(3)?,
+        creator: UserId::Uid(row.get(3)?),
       })
     },
   ) {
@@ -820,8 +830,8 @@ pub fn read_userinvite(
 // change password, checking old password first.
 pub fn change_password(
   conn: &Connection,
-  uid: i64,
-  cp: ChangePassword,
+  uid: UserId,
+  cp: &ChangePassword,
 ) -> Result<(), error::Error> {
   let mut userdata = read_user_by_id(&conn, uid)?;
   match userdata.registration_key {
@@ -851,9 +861,72 @@ pub fn change_password(
   }
 }
 
+// change password, checking old password first.
+pub async fn change_remote_url(
+  conn: &Connection,
+  uid: UserId,
+  user_uri_path: String,
+  cru: &ChangeRemoteUrl,
+) -> Result<UserResponse, error::Error> {
+  let mut userdata = read_user_by_id(&conn, uid)?;
+  {
+    // check the pwd.
+    if sha256::digest(
+      (cru.pwd.clone() + userdata.salt.as_str())
+        .into_bytes()
+        .as_slice(),
+    ) != userdata.hashwd
+    {
+      // old password is bad, can't change.
+      bail!("invalid password!")
+    } else {
+      // try to log in to an existing account on the remote!
+      let client = reqwest::Client::new();
+      let l = UserRequest::UrqLogin(Login {
+        uid: userdata.name.clone(),
+        pwd: cru.pwd.clone(),
+      });
+
+      // TODO: this uri is dependent on the remote app!
+      // which should be the same as this app, but still.
+      let user_uri = format!("{}/{}", cru.remote_url, user_uri_path);
+
+      let res = client.post(user_uri).json(&l).send().await?;
+      let cookie = match res.headers().get(reqwest::header::SET_COOKIE) {
+        Some(ck) => Some(
+          ck.to_str()
+            .map_err(|_| error::Error::String("invalid cookie".to_string()))?
+            .to_string(),
+        ),
+        None => None,
+      };
+
+      let wm = serde_json::from_value::<UserResponse>(res.json().await?)?;
+      if let UserResponse::UrpLoggedIn(ld) = wm {
+        if userdata.uuid != ld.uuid {
+          return Ok(UserResponse::UrpInvalidUserUuid);
+        }
+
+        userdata.remote_url = Some(cru.remote_url.clone());
+        userdata.cookie = cookie;
+
+        update_user(conn, &userdata)?;
+        info!("changed remote_url for {}", userdata.name.to_lowercase());
+        Ok(UserResponse::UrpChangedRemoteUrl(cru.remote_url.clone()))
+      } else {
+        Ok(UserResponse::UrpRemoteRegistrationFailed)
+      }
+    }
+  }
+}
+
 // change password without requiring old password.
 // for unregistered users.
-pub fn override_password(conn: &Connection, uid: i64, newpwd: String) -> Result<(), error::Error> {
+pub fn override_password(
+  conn: &Connection,
+  uid: UserId,
+  newpwd: String,
+) -> Result<(), error::Error> {
   let mut userdata = read_user_by_id(&conn, uid)?;
   // just being cautious in limiting this to only unregistered.
   match userdata.registration_key {
@@ -877,7 +950,7 @@ pub fn override_password(conn: &Connection, uid: i64, newpwd: String) -> Result<
 
 pub fn change_email(
   conn: &Connection,
-  uid: i64,
+  uid: UserId,
   cp: ChangeEmail,
 ) -> Result<(String, Uuid), error::Error> {
   let userdata = read_user_by_id(&conn, uid)?;
@@ -903,15 +976,24 @@ pub fn change_email(
   }
 }
 
-pub fn delete_user(conn: &Connection, uid: i64) -> Result<(), error::Error> {
+pub fn delete_user(conn: &Connection, uid: UserId) -> Result<(), error::Error> {
   info!("deleting user: {}", uid);
-  conn.execute("delete from orgauth_token where user = ?1", params!(uid))?;
-  conn.execute("delete from orgauth_newemail where user = ?1", params!(uid))?;
+  conn.execute(
+    "delete from orgauth_token where user = ?1",
+    params!(uid.to_i64()),
+  )?;
+  conn.execute(
+    "delete from orgauth_newemail where user = ?1",
+    params!(uid.to_i64()),
+  )?;
   conn.execute(
     "delete from orgauth_newpassword where user = ?1",
-    params!(uid),
+    params!(uid.to_i64()),
   )?;
-  conn.execute("delete from orgauth_user where id = ?1", params!(uid))?;
+  conn.execute(
+    "delete from orgauth_user where id = ?1",
+    params!(uid.to_i64()),
+  )?;
 
   Ok(())
 }

@@ -1,43 +1,36 @@
-module Orgauth.ChangePassword exposing (GDModel, Model, Msg(..), init, update, view)
+module Orgauth.ChangeRemoteUrl exposing (GDModel, Model, Msg(..), init, update, view)
 
 import Element as E exposing (Element)
-import Element.Background as EBk
-import Element.Border as EBd
-import Element.Events as EE
-import Element.Font as EF
 import Element.Input as EI
-import Element.Region
 import GenDialog as GD
-import Orgauth.Data as Data exposing (LoginData)
-import TangoColors as TC
-import Time exposing (Zone)
+import Orgauth.Data as Data
 import Util
 
 
 type alias Model =
     { loginData : Data.LoginData
-    , oldpwd : String
-    , newpwd : String
+    , pwd : String
+    , remoteUrl : String
     }
 
 
 type Msg
-    = OldPwdChanged String
-    | NewPwdChanged String
+    = PwdChanged String
+    | RemoteUrlChanged String
     | OkClick
     | CancelClick
     | Noop
 
 
 type alias GDModel =
-    GD.Model Model Msg Data.ChangePassword
+    GD.Model Model Msg Data.ChangeRemoteUrl
 
 
 init : Data.LoginData -> List (E.Attribute Msg) -> Element () -> GDModel
 init loginData buttonStyle underLay =
     { view = view buttonStyle
     , update = update
-    , model = { loginData = loginData, oldpwd = "", newpwd = "" }
+    , model = { loginData = loginData, pwd = "", remoteUrl = "" }
     , underLay = underLay
     }
 
@@ -50,18 +43,19 @@ view buttonStyle mbsize model =
         , E.spacing 10
         ]
         [ EI.currentPassword []
-            { onChange = OldPwdChanged
-            , text = model.oldpwd
+            { onChange = PwdChanged
+            , text = model.pwd
             , placeholder = Nothing
             , show = False
-            , label = EI.labelLeft [] (E.text "old password")
+            , label = EI.labelLeft [] (E.text "password")
             }
-        , EI.newPassword []
-            { onChange = NewPwdChanged
-            , text = model.newpwd
-            , placeholder = Nothing
-            , show = False
-            , label = EI.labelLeft [] (E.text "new password")
+        , EI.text []
+            { onChange = RemoteUrlChanged
+            , text = model.remoteUrl
+            , placeholder =
+                model.loginData.remoteUrl
+                    |> Maybe.map (\ru -> EI.placeholder [] (E.text ru))
+            , label = EI.labelLeft [] (E.text "new remote url")
             }
         , E.row [ E.width E.fill, E.spacing 10 ]
             [ EI.button buttonStyle
@@ -73,22 +67,22 @@ view buttonStyle mbsize model =
         ]
 
 
-update : Msg -> Model -> GD.Transition Model Data.ChangePassword
+update : Msg -> Model -> GD.Transition Model Data.ChangeRemoteUrl
 update msg model =
     case msg of
-        OldPwdChanged s ->
-            GD.Dialog { model | oldpwd = s }
+        PwdChanged s ->
+            GD.Dialog { model | pwd = s }
 
-        NewPwdChanged s ->
-            GD.Dialog { model | newpwd = s }
+        RemoteUrlChanged s ->
+            GD.Dialog { model | remoteUrl = s }
 
         CancelClick ->
             GD.Cancel
 
         OkClick ->
             GD.Ok
-                { oldpwd = model.oldpwd
-                , newpwd = model.newpwd
+                { pwd = model.pwd
+                , remoteUrl = model.remoteUrl
                 }
 
         Noop ->
