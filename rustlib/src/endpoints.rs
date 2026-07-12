@@ -119,6 +119,8 @@ pub async fn user_interface(
 
               user.email = rd.email;
 
+              let tx = conn.unchecked_transaction()?;
+
               dbfun::update_user(&conn, &user)?;
               if sha256::digest(
                 (rd.pwd.clone() + user.salt.as_str())
@@ -129,6 +131,8 @@ pub async fn user_interface(
                 // change password.
                 dbfun::override_password(&conn, user.id, rd.pwd)?;
               }
+
+              tx.commit()?;
 
               if config.send_emails {
                 // send a registration email.
@@ -275,6 +279,7 @@ pub async fn user_interface(
       }
     }
     UserRequest::UrqRSVP(rsvp) => {
+      let tx = conn.unchecked_transaction()?;
       // invite exists?
       info!("rsvp: {:?}", rsvp.uid);
       let invite =
@@ -374,6 +379,8 @@ pub async fn user_interface(
             }
           }
 
+          tx.commit()?;
+
           // respond with login.
           log_user_in(tokener, callbacks, &conn, uid)
         }
@@ -445,6 +452,8 @@ pub async fn user_interface(
       match userdata.registration_key {
         Some(_reg_key) => Ok(UserResponse::UrpUnregisteredUser),
         None => {
+          let tx = conn.unchecked_transaction()?;
+
           let npwd = dbfun::read_newpassword(&conn, userdata.id, set_password.reset_key)?;
 
           if is_token_expired(config.reset_token_expiration_ms, npwd) {
@@ -457,6 +466,7 @@ pub async fn user_interface(
             );
             dbfun::remove_newpassword(&conn, userdata.id, set_password.reset_key)?;
             dbfun::update_user(&conn, &userdata)?;
+            tx.commit()?;
             Ok(UserResponse::UrpSetPasswordAck)
           }
         }
