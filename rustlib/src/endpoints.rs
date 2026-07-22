@@ -470,7 +470,7 @@ pub async fn user_interface(
           let conn = dbfun::connection_open(config.db.as_path())?;
           match dbfun::read_user_by_token_api(
             &conn,
-            token,
+            &token,
             config.login_token_expiration_ms,
             config.regen_login_tokens,
           ) {
@@ -575,7 +575,7 @@ pub fn admin_interface_check(
       let conn = dbfun::connection_open(config.db.as_path())?;
       match dbfun::read_user_by_token_api(
         &conn,
-        token,
+        &token,
         config.login_token_expiration_ms,
         config.regen_login_tokens,
       ) {

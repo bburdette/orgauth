@@ -285,7 +285,7 @@ struct TokenInfo {
   prevtoken: Option<String>,
 }
 
-fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo), error::Error> {
+fn read_user_by_token(conn: &Connection, token: &Uuid) -> Result<(User, TokenInfo), error::Error> {
   let (user, tokendate, regendate, prevtoken) : (User, i64, Option<i64>, Option<String>) = conn.query_row_and_then(
     "select id, uuid, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie,
         orgauth_token.tokendate, orgauth_token.regendate, orgauth_token.prevtoken
@@ -346,7 +346,7 @@ fn check_user(
 // in regen mode, but does remove prev tokens.
 pub fn read_user_by_token_api(
   conn: &Connection,
-  token: Uuid,
+  token: &Uuid,
   token_expiration_ms: Option<i64>,
   regen_login_tokens: bool,
 ) -> Result<User, error::Error> {
@@ -463,7 +463,7 @@ fn read_user_with_token_pageload_internal(
 ) -> Result<User, error::Error> {
   let tx = conn.transaction()?;
 
-  let (user, tokeninfo) = read_user_by_token(&tx, token)?;
+  let (user, tokeninfo) = read_user_by_token(&tx, &token)?;
 
   check_user(&user, tokeninfo.tokendate, token_expiration_ms)?;
 
