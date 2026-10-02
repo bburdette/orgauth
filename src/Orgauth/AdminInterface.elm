@@ -2,8 +2,7 @@ module Orgauth.AdminInterface exposing (SendMsg(..), ServerResponse(..), encodeS
 
 import Json.Decode as JD
 import Json.Encode as JE
-import Orgauth.Data as Data
-import Orgauth.UserId exposing (UserId(..))
+import Orgauth.Data as Data exposing (UserId(..))
 
 
 type SendMsg
@@ -60,25 +59,25 @@ encodeSendMsg sm =
         DeleteUser id ->
             JE.object
                 [ ( "what", JE.string "DeleteUser" )
-                , ( "data", JE.int <| Data.getUserIdVal id )
+                , ( "data", Data.userIdEncoder id )
                 ]
 
         UpdateUser ld ->
             JE.object
                 [ ( "what", JE.string "UpdateUser" )
-                , ( "data", Data.encodeLoginData ld )
+                , ( "data", Data.loginDataEncoder ld )
                 ]
 
         GetInvite gi ->
             JE.object
                 [ ( "what", JE.string "GetInvite" )
-                , ( "data", Data.encodeGetInvite gi )
+                , ( "data", Data.getInviteEncoder gi )
                 ]
 
         GetPwdReset id ->
             JE.object
                 [ ( "what", JE.string "GetPwdReset" )
-                , ( "data", JE.int <| Data.getUserIdVal id )
+                , ( "data", Data.userIdEncoder id )
                 ]
 
 
@@ -90,19 +89,19 @@ serverResponseDecoder =
             (\what ->
                 case what of
                     "Users" ->
-                        JD.map Users (JD.at [ "data" ] (JD.list Data.decodeLoginData))
+                        JD.map Users (JD.at [ "data" ] (JD.list Data.loginDataDecoder))
 
                     "UserDeleted" ->
                         JD.map UserDeleted (JD.at [ "data" ] JD.int)
 
                     "UserUpdated" ->
-                        JD.map UserUpdated (JD.at [ "data" ] Data.decodeLoginData)
+                        JD.map UserUpdated (JD.at [ "data" ] Data.loginDataDecoder)
 
                     "UserInvite" ->
-                        JD.map UserInvite (JD.at [ "data" ] Data.decodeUserInvite)
+                        JD.map UserInvite (JD.at [ "data" ] Data.userInviteDecoder)
 
                     "PwdReset" ->
-                        JD.map PwdReset (JD.at [ "data" ] Data.decodePwdReset)
+                        JD.map PwdReset (JD.at [ "data" ] Data.pwdResetDecoder)
 
                     "NotLoggedIn" ->
                         JD.succeed NotLoggedIn

@@ -6,11 +6,11 @@ import Orgauth.Data as Data
 
 
 type SendMsg
-    = Register Data.Registration
+    = Register Data.RegistrationData
     | Login Data.Login
     | GetInvite Data.GetInvite
     | ReadInvite String
-    | RSVP Data.RSVP
+    | RSVP Data.Rsvp
     | ResetPassword Data.ResetPassword
     | SetPassword Data.SetPassword
     | Logout
@@ -91,19 +91,19 @@ encodeSendMsg sm =
         Register registration ->
             JE.object
                 [ ( "what", JE.string "Register" )
-                , ( "data", Data.encodeRegistration registration )
+                , ( "data", Data.registrationDataEncoder registration )
                 ]
 
         Login login ->
             JE.object
                 [ ( "what", JE.string "Login" )
-                , ( "data", Data.encodeLogin login )
+                , ( "data", Data.loginEncoder login )
                 ]
 
         RSVP rsvp ->
             JE.object
                 [ ( "what", JE.string "RSVP" )
-                , ( "data", Data.encodeRSVP rsvp )
+                , ( "data", Data.rsvpEncoder rsvp )
                 ]
 
         Logout ->
@@ -114,25 +114,25 @@ encodeSendMsg sm =
         ResetPassword chpwd ->
             JE.object
                 [ ( "what", JE.string "ResetPassword" )
-                , ( "data", Data.encodeResetPassword chpwd )
+                , ( "data", Data.resetPasswordEncoder chpwd )
                 ]
 
         SetPassword chpwd ->
             JE.object
                 [ ( "what", JE.string "SetPassword" )
-                , ( "data", Data.encodeSetPassword chpwd )
+                , ( "data", Data.setPasswordEncoder chpwd )
                 ]
 
         ChangePassword chpwd ->
             JE.object
                 [ ( "what", JE.string "ChangePassword" )
-                , ( "data", Data.encodeChangePassword chpwd )
+                , ( "data", Data.changePasswordEncoder chpwd )
                 ]
 
         ChangeEmail chpwd ->
             JE.object
                 [ ( "what", JE.string "ChangeEmail" )
-                , ( "data", Data.encodeChangeEmail chpwd )
+                , ( "data", Data.changeEmailEncoder chpwd )
                 ]
 
         ReadInvite token ->
@@ -144,7 +144,7 @@ encodeSendMsg sm =
         GetInvite gi ->
             JE.object
                 [ ( "what", JE.string "GetInvite" )
-                , ( "data", Data.encodeGetInvite gi )
+                , ( "data", Data.getInviteEncoder gi )
                 ]
 
 
@@ -172,7 +172,7 @@ serverResponseDecoder =
                         JD.succeed UserExists
 
                     "LoggedIn" ->
-                        JD.map LoggedIn (JD.at [ "data" ] Data.decodeLoginData)
+                        JD.map LoggedIn (JD.at [ "data" ] Data.loginDataDecoder)
 
                     "LoggedOut" ->
                         JD.succeed LoggedOut
@@ -202,7 +202,7 @@ serverResponseDecoder =
                         JD.succeed BlankPassword
 
                     "Invite" ->
-                        JD.map Invite (JD.at [ "data" ] Data.decodeUserInvite)
+                        JD.map Invite (JD.at [ "data" ] Data.userInviteDecoder)
 
                     "ServerError" ->
                         JD.map ServerError (JD.at [ "data" ] JD.string)

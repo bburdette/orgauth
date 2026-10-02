@@ -1,16 +1,19 @@
 {
     "type": "package",
+    "source-directories": [
+        "elm-common/src"
+    ],
     "name": "bburdette/orgauth",
     "summary": "user login, registration, management.",
     "license": "BSD-3-Clause",
     "version": "1.0.0",
     "exposed-modules": [
-      "ChangeEmail",
-      "ChangePassword",
-      "ResetPassword",
-      "UserInterface"
+      "Orgauth.ChangeEmail",
+      "Orgauth.ChangePassword",
+      "Orgauth.ResetPassword",
+      "Orgauth.UserInterface"
     ],
-    "elm-version": "0.19.0 <= v < 0.19.2",
+    "elm-version": "0.19.0 <= v < 0.19.4",
     "dependencies": {
         "mdgriffith/elm-ui": "1.1.8 <= v < 1.1.9",
         "TSFoster/elm-uuid": "4.1.0 <= v < 4.1.1",
