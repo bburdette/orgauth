@@ -8,10 +8,18 @@
     "license": "BSD-3-Clause",
     "version": "1.0.0",
     "exposed-modules": [
-      "Orgauth.ChangeEmail",
-      "Orgauth.ChangePassword",
-      "Orgauth.ResetPassword",
-      "Orgauth.UserInterface"
+        "Orgauth.ChangeEmail",
+        "Orgauth.ChangePassword",
+        "Orgauth.ChangeRemoteUrl",
+        "Orgauth.Data",
+        "Orgauth.DataUtil",
+        "Orgauth.Invited",
+        "Orgauth.Login",
+        "Orgauth.ResetPassword",
+        "Orgauth.ShowUrl",
+        "Orgauth.UserEdit",
+        "Orgauth.UserId",
+        "Orgauth.UserListing"
     ],
     "elm-version": "0.19.0 <= v < 0.19.4",
     "dependencies": {
