@@ -285,7 +285,7 @@ struct TokenInfo {
   prevtoken: Option<String>,
 }
 
-fn read_user_by_token(conn: &Connection, token: Uuid) -> Result<(User, TokenInfo), error::Error> {
+fn read_user_by_token(conn: &Connection, token: &Uuid) -> Result<(User, TokenInfo), error::Error> {
   let (user, tokendate, regendate, prevtoken) : (User, i64, Option<i64>, Option<String>) = conn.query_row_and_then(
     "select id, uuid, name, hashwd, salt, email, registration_key, admin, active, remote_url, cookie,
         orgauth_token.tokendate, orgauth_token.regendate, orgauth_token.prevtoken
@@ -346,7 +346,7 @@ fn check_user(
 // in regen mode, but does remove prev tokens.
 pub fn read_user_by_token_api(
   conn: &Connection,
-  token: Uuid,
+  token: &Uuid,
   token_expiration_ms: Option<i64>,
   regen_login_tokens: bool,
 ) -> Result<User, error::Error> {
@@ -412,7 +412,7 @@ fn remove_token_chain(
 pub fn read_user_with_token_pageload(
   conn: &mut Connection,
   session: &Session,
-  token: Uuid,
+  token: &Uuid,
   regen_login_tokens: bool,
   token_expiration_ms: Option<i64>,
 ) -> Result<User, error::Error> {
@@ -457,7 +457,7 @@ pub fn read_user_with_token_pageload(
 fn read_user_with_token_pageload_internal(
   conn: &mut Connection,
   session: &Session,
-  token: Uuid,
+  token: &Uuid,
   regen_login_tokens: bool,
   token_expiration_ms: Option<i64>,
 ) -> Result<User, error::Error> {
@@ -484,7 +484,7 @@ fn read_user_with_token_pageload_internal(
       // add new login token, and flag old for removal.
       mark_prevtoken(&tx, token)?;
       let new_token = Uuid::new_v4();
-      add_token(&tx, user.id, new_token, Some(token))?;
+      add_token(&tx, user.id, &new_token, &Some(*token))?;
       session.insert("token", new_token)?;
     }
   }
@@ -497,8 +497,8 @@ fn read_user_with_token_pageload_internal(
 pub fn add_token(
   conn: &Connection,
   user: UserId,
-  token: Uuid,
-  prevtoken: Option<Uuid>,
+  token: &Uuid,
+  prevtoken: &Option<Uuid>,
 ) -> Result<(), error::Error> {
   let now = now()?;
   conn.execute(
@@ -518,7 +518,7 @@ pub fn add_token(
 pub fn mark_prevtoken(
   conn: &Connection,
   // token: Uuid,
-  prevtoken: Uuid,
+  prevtoken: &Uuid,
 ) -> Result<bool, error::Error> {
   // set regendate to now.
   let now = now()?;

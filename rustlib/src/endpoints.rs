@@ -86,7 +86,7 @@ pub fn log_user_in(
   // new token here, and token date.
   let token = Uuid::new_v4();
   // new token has no "prev"
-  dbfun::add_token(&conn, uid, token, None)?;
+  dbfun::add_token(&conn, uid, &token, &None)?;
   tokener.set(token)?;
 
   Ok(UserResponse::UrpLoggedIn(ld))
@@ -470,7 +470,7 @@ pub async fn user_interface(
           let conn = dbfun::connection_open(config.db.as_path())?;
           match dbfun::read_user_by_token_api(
             &conn,
-            token,
+            &token,
             config.login_token_expiration_ms,
             config.regen_login_tokens,
           ) {
@@ -575,7 +575,7 @@ pub fn admin_interface_check(
       let conn = dbfun::connection_open(config.db.as_path())?;
       match dbfun::read_user_by_token_api(
         &conn,
-        token,
+        &token,
         config.login_token_expiration_ms,
         config.regen_login_tokens,
       ) {
